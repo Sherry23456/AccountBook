@@ -7,6 +7,9 @@ public class AppFlowManager : MonoBehaviour
     [Header("Dependencies")]
     [SerializeField] private UIManager uiManager;
 
+    [Header("Panel Controllers")]
+    [SerializeField] private RecordPanelUI recordPanelUI;
+
     [Header("Bottom Navigation Buttons")]
     [SerializeField] private Button btnDetail;
     [SerializeField] private Button btnRecord;
@@ -19,13 +22,18 @@ public class AppFlowManager : MonoBehaviour
     }
 
     /// <summary>
-    /// UIManager 自动 查找
+    /// 外部引用为空时自动查找（记账页初始为未激活，需包含未激活对象）
     /// </summary>
     private void TryInitializeDependencies()
     {
         if (uiManager == null)
         {
             uiManager = FindFirstObjectByType<UIManager>();
+        }
+
+        if (recordPanelUI == null)
+        {
+            recordPanelUI = FindFirstObjectByType<RecordPanelUI>(FindObjectsInactive.Include);
         }
     }
 
@@ -65,10 +73,15 @@ public class AppFlowManager : MonoBehaviour
     }
 
     /// <summary>
-    /// 记账 按钮
+    /// 记账 按钮：先复位为新增模式再打开（半屏覆盖式，不隐藏底栏）
     /// </summary>
     private void OnClickRecord()
     {
+        if (recordPanelUI != null)
+        {
+            recordPanelUI.SetupForNew();
+        }
+
         if (uiManager != null)
         {
             uiManager.OpenRecordPanel();

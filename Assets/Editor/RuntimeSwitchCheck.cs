@@ -183,3 +183,5 @@ public static class RuntimeSwitchCheck
 }
 
 // 桥重连触发：修改此文件可引发域重载，让 WebSocket 重连 MCP 桥。
+
+// 桥重连触发：修改此文件可引发域重载，让 WebSocket 重连 MCP 桥。（步骤02）

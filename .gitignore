@@ -29,3 +29,6 @@ Recordings/
 # 系统文件
 .DS_Store
 Thumbs.db
+
+# 验证截图产物（RecordPanelShot 自动生成）
+.shots/
