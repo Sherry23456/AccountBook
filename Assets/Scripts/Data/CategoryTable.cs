@@ -72,6 +72,27 @@ public static class CategoryTable
     }
 
     /// <summary>
+    /// 按分类名取定义（明细页行图标反查用），找不到返回 null；重名分类（如"其他"）取第一个
+    /// </summary>
+    public static CategoryDef GetByName(string categoryName)
+    {
+        if (string.IsNullOrEmpty(categoryName))
+        {
+            return null;
+        }
+
+        for (int i = 0; i < all.Count; i++)
+        {
+            if (all[i].Name == categoryName)
+            {
+                return all[i];
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
     /// 按类型取分类列表（宫格页签用）
     /// </summary>
     public static List<CategoryDef> GetByType(int recordType)
