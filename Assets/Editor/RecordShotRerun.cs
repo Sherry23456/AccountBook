@@ -7,7 +7,7 @@ using UnityEngine;
 /// </summary>
 public static class RecordShotRerun
 {
-    private const string Key = "AccountBook.RecordShotRerun.Ran";
+    private const string Key = "AccountBook.RecordShotRerun.Ran2";
 
     [InitializeOnLoadMethod]
     private static void Run()

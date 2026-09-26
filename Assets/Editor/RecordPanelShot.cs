@@ -15,6 +15,7 @@ public static class RecordPanelShot
     private const string ArmedKey = "AccountBook.RecordShot.Armed";
     private const string TakenKey = "AccountBook.RecordShot.Taken";
     private const string ShotPath = "D:\\Qklunity\\AccountBook\\.shots\\record_panel.png";
+    private const string ShotPathPicker = "D:\\Qklunity\\AccountBook\\.shots\\date_picker.png";
 
     [InitializeOnLoadMethod]
     private static void Init()
@@ -48,7 +49,7 @@ public static class RecordPanelShot
     }
 
     /// <summary>
-    /// 打开记账页 → 等 40 帧布局稳定 → 截图 → 再等 20 帧 → 退 Play
+    /// 打开记账页 → 40 帧截图 → 打开日期弹窗 → 100 帧截图 → 120 帧退 Play
     /// </summary>
     private static void OpenPanelAndCapture()
     {
@@ -91,7 +92,29 @@ public static class RecordPanelShot
                 Debug.Log("[RecordShot] 已请求截图：" + ShotPath);
             }
 
-            if (frame >= 60)
+            if (frame == 70)
+            {
+                // 打开日期选择弹窗拍第二张
+                try
+                {
+                    RecordPanelUI panel = UnityEngine.Object.FindFirstObjectByType<RecordPanelUI>();
+                    SerializedObject soPanel = new SerializedObject(panel);
+                    Button todayButton = soPanel.FindProperty("todayButton").objectReferenceValue as Button;
+                    todayButton.onClick.Invoke();
+                }
+                catch (Exception ex)
+                {
+                    Debug.LogWarning("[RecordShot] 打开日期弹窗失败：" + ex.Message);
+                }
+            }
+
+            if (frame == 100)
+            {
+                ScreenCapture.CaptureScreenshot(ShotPathPicker, 2);
+                Debug.Log("[RecordShot] 已请求日期弹窗截图：" + ShotPathPicker);
+            }
+
+            if (frame >= 120)
             {
                 EditorApplication.update -= Tick;
                 SessionState.SetBool(TakenKey, true);

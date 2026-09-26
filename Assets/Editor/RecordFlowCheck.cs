@@ -114,20 +114,26 @@ public static class RecordFlowCheck
             }
         }
 
+        Button todayButton = soPanel.FindProperty("todayButton").objectReferenceValue as Button;
+        GameObject datePickerPanel = soPanel.FindProperty("datePickerPanel").objectReferenceValue as GameObject;
         Button btnCancel = FindChildButton(panel.transform, "btnClose");
 
         if (btnRecord == null || amountText == null || doneButton == null || btnCancel == null ||
             tabExpense == null || tabIncome == null || plusButton == null || minusButton == null ||
-            dotButton == null || backspaceButton == null || digitsOk == false)
+            dotButton == null || backspaceButton == null || todayButton == null || datePickerPanel == null ||
+            digitsOk == false)
         {
             Debug.LogError("[RecordCheck] FAIL - 关键引用缺失，请先运行菜单 AccountBook/04-搭建记账页。");
             return;
         }
 
         string month = DateTime.Now.ToString("yyyy-MM");
+        string prevMonthKey = DateTime.Now.Date.AddMonths(-1).ToString("yyyy-MM");
         string today = DateTime.Now.ToString("yyyy-MM-dd");
         List<string> baselineIds = GetRecordIds(accountManager.GetRecordsByMonth(month));
         int baselineCount = baselineIds.Count;
+        List<string> prevBaselineIds = GetRecordIds(accountManager.GetRecordsByMonth(prevMonthKey));
+        int prevBaselineCount = prevBaselineIds.Count;
         List<string> createdIds = new List<string>();
 
         // 1) 打开记账页（新增模式）
@@ -191,8 +197,8 @@ public static class RecordFlowCheck
 
         monthRecords = accountManager.GetRecordsByMonth(month);
         AccountRecord edited = monthRecords.Find(r => r.Id == added.Id);
-        allPass &= Check("编辑保存：同 Id 金额 1150、总数不变",
-            edited != null && edited.AmountFen == 1150 && monthRecords.Count == baselineCount + 2);
+        allPass &= Check("编辑保存：同 Id 金额 1150、总数不变、日期保留",
+            edited != null && edited.AmountFen == 1150 && monthRecords.Count == baselineCount + 2 && edited.Date == today);
 
         // 5) 减号显示 + 退格 + 取消不落库
         btnRecord.onClick.Invoke();
@@ -215,13 +221,56 @@ public static class RecordFlowCheck
         allPass &= Check("切回支出宫格 31 项", panel.GridItemCount == 31);
         btnCancel.onClick.Invoke();
 
-        // 7) 清理测试数据
+        // 7) 日期补记：翻上月选 15 号 → 落库日期为上月 15 日
+        btnRecord.onClick.Invoke();
+        todayButton.onClick.Invoke();
+        allPass &= Check("点今天键 → 日期弹窗打开", datePickerPanel.activeSelf);
+
+        DatePickerPanel picker = datePickerPanel.GetComponent<DatePickerPanel>();
+        SerializedObject soPicker = new SerializedObject(picker);
+        Button btnPrevMonth = soPicker.FindProperty("prevMonthButton").objectReferenceValue as Button;
+        TextMeshProUGUI pickerTitle = soPicker.FindProperty("titleLabel").objectReferenceValue as TextMeshProUGUI;
+
+        btnPrevMonth.onClick.Invoke();
+        DateTime targetDate = DateTime.Now.Date.AddMonths(-1);
+        targetDate = new DateTime(targetDate.Year, targetDate.Month, 15);
+        allPass &= Check("翻上月 → 标题正确", pickerTitle != null && pickerTitle.text == targetDate.ToString("yyyy年M月"));
+
+        Button dayCell = FindDayCell(picker, "15");
+        allPass &= Check("上月存在可点的 15 号日格", dayCell != null);
+
+        if (dayCell != null)
+        {
+            dayCell.onClick.Invoke();
+        }
+
+        TextMeshProUGUI todayKeyLabel = todayButton.GetComponentInChildren<TextMeshProUGUI>();
+        allPass &= Check("确认后弹窗关闭、键面显示 MM-dd",
+            datePickerPanel.activeSelf == false && todayKeyLabel != null && todayKeyLabel.text == targetDate.ToString("MM-dd"));
+
+        digits[2].onClick.Invoke();
+        doneButton.onClick.Invoke();
+
+        List<AccountRecord> prevMonthRecords = accountManager.GetRecordsByMonth(prevMonthKey);
+        AccountRecord backdated = FindNewRecord(prevMonthRecords, prevBaselineIds, createdIds);
+        allPass &= Check("补记 → 落库 2 元于上月 15 日",
+            backdated != null && backdated.Date == targetDate.ToString("yyyy-MM-dd") && backdated.AmountFen == 200);
+
+        if (backdated != null)
+        {
+            createdIds.Add(backdated.Id);
+        }
+
+        btnCancel.onClick.Invoke();
+
+        // 8) 清理测试数据
         for (int i = 0; i < createdIds.Count; i++)
         {
             accountManager.DeleteRecord(createdIds[i]);
         }
 
-        allPass &= Check("测试数据已清理", accountManager.GetRecordsByMonth(month).Count == baselineCount);
+        allPass &= Check("当月测试数据已清理", accountManager.GetRecordsByMonth(month).Count == baselineCount);
+        allPass &= Check("上月测试数据已清理", accountManager.GetRecordsByMonth(prevMonthKey).Count == prevBaselineCount);
 
         Debug.Log($"[RecordCheck] ===== 记账流程自检{(allPass ? "全部通过" : "存在失败项")} =====");
     }
@@ -259,6 +308,39 @@ public static class RecordFlowCheck
             }
 
             return record;
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// 在月历日格里找指定日号的可点日格（其他月/未来日不可点，会跳过）
+    /// </summary>
+    private static Button FindDayCell(DatePickerPanel picker, string dayText)
+    {
+        SerializedObject soPicker = new SerializedObject(picker);
+        SerializedProperty dayProp = soPicker.FindProperty("dayButtons");
+
+        if (dayProp == null)
+        {
+            return null;
+        }
+
+        for (int i = 0; i < dayProp.arraySize; i++)
+        {
+            Button cell = dayProp.GetArrayElementAtIndex(i).objectReferenceValue as Button;
+
+            if (cell == null || cell.interactable == false)
+            {
+                continue;
+            }
+
+            TextMeshProUGUI label = cell.GetComponentInChildren<TextMeshProUGUI>();
+
+            if (label != null && label.text == dayText)
+            {
+                return cell;
+            }
         }
 
         return null;

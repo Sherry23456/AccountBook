@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.UI;
@@ -54,6 +55,9 @@ public class RecordPanelUI : MonoBehaviour
     [SerializeField] private Button doneButton;
     [SerializeField] private Button closeButton;
 
+    [Header("Date Picker")]
+    [SerializeField] private GameObject datePickerPanel;
+
     private readonly List<CategoryGridItem> gridItems = new List<CategoryGridItem>();
 
     private int currentType = (int)RecordType.Expense;   // 当前页签：0=支出，1=收入
@@ -61,12 +65,15 @@ public class RecordPanelUI : MonoBehaviour
     private string currentInput = "";                    // 正在输入的数字串（含小数点）
     private char lastOperator = '+';                     // 待套用到 currentInput 的运算符
     private string selectedCategory = "";                // 当前选中分类名
+    private DateTime selectedDate;                       // 当前记账日期（0 点，补记可选过去）
     private AccountRecord editingRecord = null;          // 编辑模式目标记录（null = 新增）
 
     private Image tabExpenseImage;
     private Image tabIncomeImage;
     private TextMeshProUGUI tabExpenseLabel;
     private TextMeshProUGUI tabIncomeLabel;
+    private TextMeshProUGUI todayKeyLabel;               // 「今天」键的键面文字（随所选日期变化）
+    private DatePickerPanel datePicker;                  // 日期选择弹窗控制器
 
     private void OnEnable()
     {
@@ -76,6 +83,8 @@ public class RecordPanelUI : MonoBehaviour
         RefreshTabVisuals();
         RefreshAmountDisplay();
         RefreshDoneButton();
+        RefreshTodayKeyLabel();
+        CloseDatePicker();
     }
 
     /// <summary>
@@ -113,6 +122,18 @@ public class RecordPanelUI : MonoBehaviour
         RegisterButton(backspaceButton, OnBackspacePressed);
         RegisterButton(doneButton, OnDoneClicked);
         RegisterButton(closeButton, OnCancelClicked);
+
+        // 日期弹窗确认事件（-=/+= 保证幂等）
+        if (datePicker == null && datePickerPanel != null)
+        {
+            datePicker = datePickerPanel.GetComponent<DatePickerPanel>();
+        }
+
+        if (datePicker != null)
+        {
+            datePicker.DayPicked -= OnDatePicked;
+            datePicker.DayPicked += OnDatePicked;
+        }
 
         if (digitButtons != null)
         {
@@ -154,12 +175,17 @@ public class RecordPanelUI : MonoBehaviour
             tabIncomeImage = tabIncomeButton.image;
             tabIncomeLabel = tabIncomeButton.GetComponentInChildren<TextMeshProUGUI>();
         }
+
+        if (todayButton != null)
+        {
+            todayKeyLabel = todayButton.GetComponentInChildren<TextMeshProUGUI>();
+        }
     }
 
     // ---------- 对外入口 ----------
 
     /// <summary>
-    /// 新增模式进入记账页：复位全部输入态，默认支出页签（底栏记账按钮调用）
+    /// 新增模式进入记账页：复位全部输入态，默认支出页签、日期为今天（底栏记账按钮调用）
     /// </summary>
     public void SetupForNew()
     {
@@ -171,11 +197,14 @@ public class RecordPanelUI : MonoBehaviour
             noteInput.text = "";
         }
 
+        selectedDate = DateTime.Now.Date;
         SetType((int)RecordType.Expense);
+        CloseDatePicker();
+        RefreshTodayKeyLabel();
     }
 
     /// <summary>
-    /// 编辑模式进入记账页（步骤03 明细页调用）：回填页签/分类/金额/备注，完成时走 UpdateRecord 而非 Add
+    /// 编辑模式进入记账页（步骤03 明细页调用）：回填页签/分类/金额/备注/日期，完成时走 UpdateRecord 而非 Add
     /// </summary>
     public void SetupForEdit(AccountRecord record)
     {
@@ -189,6 +218,7 @@ public class RecordPanelUI : MonoBehaviour
         committedFen = 0;
         lastOperator = '+';
         currentInput = FormatFen(record.AmountFen);
+        selectedDate = TryParseRecordDate(record.Date, out DateTime parsedDate) ? parsedDate : DateTime.Now.Date;
 
         if (noteInput != null)
         {
@@ -197,8 +227,10 @@ public class RecordPanelUI : MonoBehaviour
 
         SetType(record.Type);
         SelectCategoryByName(record.Category);
+        CloseDatePicker();
         RefreshAmountDisplay();
         RefreshDoneButton();
+        RefreshTodayKeyLabel();
     }
 
     /// <summary>
@@ -417,12 +449,6 @@ public class RecordPanelUI : MonoBehaviour
         }
     }
 
-    private void OnTodayClicked()
-    {
-        // 本版日期固定为当天，「今天」为占位按钮（补记历史日期不做）
-        Debug.Log("[RecordPanelUI] 「今天」：日期固定为当天（占位）。");
-    }
-
     /// <summary>
     /// 当前总计（含 pending 运算），完成键可用性依据
     /// </summary>
@@ -569,6 +595,80 @@ public class RecordPanelUI : MonoBehaviour
         RefreshInputVisuals();
     }
 
+    // ---------- 日期选择 ----------
+
+    /// <summary>
+    /// 「今天」键：打开日期选择弹窗（补记漏账入口），键面文字随所选日期变化
+    /// </summary>
+    private void OnTodayClicked()
+    {
+        if (datePicker == null)
+        {
+            Debug.LogWarning("[RecordPanelUI] 日期选择弹窗引用缺失（请重跑搭建菜单）。");
+            return;
+        }
+
+        datePicker.Show(selectedDate);
+    }
+
+    /// <summary>
+    /// 弹窗确认：记录所选日期并刷新键面
+    /// </summary>
+    private void OnDatePicked(DateTime date)
+    {
+        selectedDate = date;
+        RefreshTodayKeyLabel();
+    }
+
+    /// <summary>
+    /// 键面显示规则：今天 → "今天"；同年 → "MM-dd"；跨年 → "yyyy-MM-dd"
+    /// </summary>
+    private void RefreshTodayKeyLabel()
+    {
+        if (todayKeyLabel == null)
+        {
+            return;
+        }
+
+        DateTime today = DateTime.Now.Date;
+
+        if (selectedDate == today)
+        {
+            todayKeyLabel.text = "今天";
+            todayKeyLabel.fontSize = 44f;
+        }
+        else if (selectedDate.Year == today.Year)
+        {
+            todayKeyLabel.text = selectedDate.ToString("MM-dd");
+            todayKeyLabel.fontSize = 40f;
+        }
+        else
+        {
+            todayKeyLabel.text = selectedDate.ToString("yyyy-MM-dd");
+            todayKeyLabel.fontSize = 30f;
+        }
+    }
+
+    /// <summary>
+    /// 关闭日期弹窗（面板开关/保存/取消时调用，防止残留打开态）
+    /// </summary>
+    private void CloseDatePicker()
+    {
+        if (datePickerPanel != null && datePickerPanel.activeSelf)
+        {
+            datePickerPanel.SetActive(false);
+        }
+    }
+
+    /// <summary>
+    /// 解析 yyyy-MM-dd（编辑回填用），失败返回 false
+    /// </summary>
+    private static bool TryParseRecordDate(string text, out DateTime date)
+    {
+        return DateTime.TryParseExact(text ?? "", "yyyy-MM-dd", CultureInfo.InvariantCulture,
+            DateTimeStyles.None, out date);
+    }
+
     // ---------- 保存流程 ----------
 
     /// <summary>
@@ -594,11 +694,11 @@ public class RecordPanelUI : MonoBehaviour
         record.Type = currentType;
         record.Category = selectedCategory;
         record.AmountFen = totalFen;
+        record.Date = selectedDate.ToString("yyyy-MM-dd");
 
         if (editingRecord == null)
         {
-            // 新增：日期/创建时间取当下；编辑保留原值（编辑不改记账日期）
-            record.Date = DateTime.Now.ToString("yyyy-MM-dd");
+            // 创建时间只在新增时打点；日期补记可改，编辑不改账期以外还能改日期
             record.CreatedAt = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
         }
 
@@ -632,6 +732,7 @@ public class RecordPanelUI : MonoBehaviour
         }
 
         selectedCategory = "";
+        CloseDatePicker();
 
         if (uiManager != null)
         {

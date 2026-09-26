@@ -14,7 +14,7 @@ using TMPro;
 public static class RecordPanelBuilder
 {
     private const string MenuItemPath = "AccountBook/04-搭建记账页";
-    private const string AutoRunSessionKey = "AccountBook.RecordPanelBuilder.SessionRan3";
+    private const string AutoRunSessionKey = "AccountBook.RecordPanelBuilder.SessionRan4";
     private const string ScenePath = "Assets/Scenes/Main.unity";
     private const string PrefabPath = "Assets/Prefabs/CategoryGridItem.prefab";
     private const string CircleSpritePath = "Assets/Art/Generated/circle.png";
@@ -28,6 +28,7 @@ public static class RecordPanelBuilder
     private static readonly Color ColWhite = FromHex(0xFFFFFF);
     private static readonly Color ColKey = FromHex(0xF2F2F2);
     private static readonly Color ColPlaceholder = FromHex(0x999999);
+    private static readonly Color ColMask = new Color(0f, 0f, 0f, 0.55f);
 
     /// <summary>
     /// 搭建产物引用包（面板内部结构与对外接线各字段的临时载体）
@@ -48,6 +49,7 @@ public static class RecordPanelBuilder
         public Button Today;
         public Button Backspace;
         public Button Done;
+        public GameObject DatePickerPanel;
     }
 
     /// <summary>
@@ -187,6 +189,7 @@ public static class RecordPanelBuilder
         SetRef(so, "backspaceButton", refs.Backspace);
         SetRef(so, "doneButton", refs.Done);
         SetRef(so, "closeButton", refs.BtnClose);
+        SetRef(so, "datePickerPanel", refs.DatePickerPanel);
         so.ApplyModifiedPropertiesWithoutUndo();
 
         // —— 重接 UIManager.recordPanel（旧面板已销毁）与 AppFlowManager.recordPanelUI ——
@@ -220,7 +223,7 @@ public static class RecordPanelBuilder
             chars.Append(CategoryTable.All[i].Name);
         }
 
-        chars.Append("支出收入取消今天退格完成备注：点击填写备分明细图表记账元0123456789.+-");
+        chars.Append("支出收入取消今天退格完成备注：点击填写备分明细图表记账元一二三四五六日回月年0123456789.+-");
 
         bool ok = font.TryAddCharacters(chars.ToString());
 
@@ -265,6 +268,7 @@ public static class RecordPanelBuilder
         BuildCategoryScrollView(content, refs);
         BuildAmountRow(content, font, refs);
         BuildKeyboard(content, font, refs);
+        refs.DatePickerPanel = BuildDatePickerPanel(panel.transform, font);
 
         refs.Panel = panel;
         return refs;
@@ -454,6 +458,109 @@ public static class RecordPanelBuilder
         refs.Digits[0] = CreateKey(keyGrid, "Key_0", "0", font, 60f, ColKey);
         refs.Backspace = CreateKey(keyGrid, "Key_Backspace", "退格", font, 40f, ColKey);
         refs.Done = CreateKey(keyGrid, "Key_Done", "完成", font, 48f, ColYellow);
+    }
+
+    /// <summary>
+    /// 日期选择弹窗（补记漏账）：全屏遮罩（点遮罩关闭）+ 白底月历对话框
+    /// （‹ 2026年9月 › / 星期行周一为首 / 6×7 日格 / 回到今天），默认隐藏。
+    /// </summary>
+    private static GameObject BuildDatePickerPanel(Transform panelRoot, TMP_FontAsset font)
+    {
+        GameObject picker = CreateRect(panelRoot, "DatePickerPanel", Vector2.zero, Vector2.one, new Vector2(0.5f, 0.5f)).gameObject;
+
+        Image mask = picker.AddComponent<Image>();
+        mask.color = ColMask;
+        mask.raycastTarget = true;
+        Button maskButton = picker.AddComponent<Button>();
+        maskButton.targetGraphic = mask;
+
+        RectTransform dialog = CreateRect(picker.transform, "Dialog", new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
+        dialog.sizeDelta = new Vector2(840f, 920f);
+        Image dialogImage = dialog.gameObject.AddComponent<Image>();
+        dialogImage.color = ColWhite;
+        dialogImage.raycastTarget = true;   // 点对话框空白不关闭（只有遮罩和日格响应）
+
+        // 头部：‹ 2026年9月 ›
+        RectTransform header = CreateRect(dialog, "Header", new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0.5f, 1f));
+        header.sizeDelta = new Vector2(0f, 120f);
+
+        Button prevMonth = CreateTextButton(header, "btnPrevMonth", "<", font,
+            new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(0f, 0.5f),
+            new Vector2(140f, 110f), new Vector2(15f, 0f), 52f);
+
+        TextMeshProUGUI title = CreateAnchoredLabel(header, "Title", "", font, 46f, ColBlack,
+            TextAlignmentOptions.Center, new Vector2(0f, 0f), new Vector2(1f, 1f), new Vector2(0.5f, 0.5f),
+            Vector2.zero, Vector2.zero);
+        RectTransform titleRect = title.GetComponent<RectTransform>();
+        titleRect.offsetMin = new Vector2(160f, 0f);
+        titleRect.offsetMax = new Vector2(-160f, 0f);
+
+        Button nextMonth = CreateTextButton(header, "btnNextMonth", ">", font,
+            new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(1f, 0.5f),
+            new Vector2(140f, 110f), new Vector2(-15f, 0f), 52f);
+
+        // 星期行（周一为第一列，与 DatePickerPanel 的偏移算法一致）
+        RectTransform weekdayRow = CreateRect(dialog, "WeekdayRow", new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0.5f, 1f));
+        weekdayRow.sizeDelta = new Vector2(0f, 70f);
+        weekdayRow.anchoredPosition = new Vector2(0f, -120f);
+        GridLayoutGroup weekdayLayout = weekdayRow.gameObject.AddComponent<GridLayoutGroup>();
+        weekdayLayout.cellSize = new Vector2(120f, 70f);
+        weekdayLayout.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
+        weekdayLayout.constraintCount = 7;
+
+        string[] weekdayNames = { "一", "二", "三", "四", "五", "六", "日" };
+
+        for (int i = 0; i < weekdayNames.Length; i++)
+        {
+            CreateStretchLabel(weekdayRow, "W" + i, weekdayNames[i], font, 30f, ColPlaceholder, TextAlignmentOptions.Center);
+        }
+
+        // 日格 6×7（固定 42 格，运行时由 DatePickerPanel 刷新文字与颜色）
+        RectTransform dayGrid = CreateRect(dialog, "DayGrid", new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0.5f, 1f));
+        dayGrid.sizeDelta = new Vector2(0f, 624f);
+        dayGrid.anchoredPosition = new Vector2(0f, -190f);
+        GridLayoutGroup dayLayout = dayGrid.gameObject.AddComponent<GridLayoutGroup>();
+        dayLayout.padding = new RectOffset(0, 0, 24, 24);
+        dayLayout.spacing = Vector2.zero;
+        dayLayout.cellSize = new Vector2(120f, 96f);
+        dayLayout.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
+        dayLayout.constraintCount = 7;
+
+        Button[] dayButtons = new Button[42];
+
+        for (int i = 0; i < 42; i++)
+        {
+            dayButtons[i] = CreateKey(dayGrid, "DayCell_" + i, "", font, 34f, ColKey);
+        }
+
+        // 底部：回到今天（选中今天并立即确认）
+        RectTransform footer = CreateRect(dialog, "Footer", new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0.5f, 0f));
+        footer.sizeDelta = new Vector2(0f, 100f);
+        Button backToday = CreateTextButton(footer, "btnBackToday", "回到今天", font,
+            new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(0f, 0.5f),
+            new Vector2(280f, 90f), new Vector2(30f, 0f), 36f);
+
+        DatePickerPanel pickerComponent = picker.AddComponent<DatePickerPanel>();
+        SerializedObject soPicker = new SerializedObject(pickerComponent);
+        SetRef(soPicker, "titleLabel", title);
+        SetRef(soPicker, "prevMonthButton", prevMonth);
+        SetRef(soPicker, "nextMonthButton", nextMonth);
+
+        SerializedProperty dayProp = soPicker.FindProperty("dayButtons");
+        dayProp.arraySize = 42;
+
+        for (int i = 0; i < 42; i++)
+        {
+            dayProp.GetArrayElementAtIndex(i).objectReferenceValue = dayButtons[i];
+        }
+
+        SetRef(soPicker, "backTodayButton", backToday);
+        SetRef(soPicker, "maskButton", maskButton);
+        soPicker.ApplyModifiedPropertiesWithoutUndo();
+
+        picker.SetActive(false);
+        Debug.Log("[RecordBuild] 已搭建日期选择弹窗（迷你月历 42 格）。");
+        return picker;
     }
 
     // ---------- 预制体 ----------
@@ -679,6 +786,7 @@ public static class RecordPanelBuilder
         allPass &= CheckRef(so, "backspaceButton");
         allPass &= CheckRef(so, "doneButton");
         allPass &= CheckRef(so, "closeButton");
+        allPass &= CheckRef(so, "datePickerPanel");
 
         SerializedProperty digitsProp = so.FindProperty("digitButtons");
         bool digitsOk = digitsProp != null && digitsProp.arraySize == 10;
