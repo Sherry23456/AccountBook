@@ -14,6 +14,7 @@ using TMPro;
 /// 行级错误不中断、空行跳过、空表/缺文件拒绝）→ 文件名白名单 → 场景引用链 →
 /// UI 全流程（基线感知）：图表页点导入开弹窗 → 预解析统计回填（重复/错误行混合）→
 /// 确认导入落库+Toast+自动关闭 → 同文件重复导入可导入 0 笔 → 错误文件名/坏表头提示 →
+/// 计数比对（库 1 笔文件 2 笔同内容 → 进 1 跳 1，同三元组库内变 2 笔，全新三元组进 1）→
 /// 回环测试（备份 JSON → 删光 → 导入全量文件 → 与导出前逐笔一致 → 还原）→ 截图 →
 /// 清理自建数据/临时文件 → 基线还原断言 → 退 Play。
 /// 回环段先复制 account_records.json 为 .bak 兜底（硬崩溃可手工还原），恢复用
@@ -341,8 +342,42 @@ public static class ImportFlowCheck
         btnCancel.onClick.Invoke();
         allPass &= Check("流程：取消关闭弹窗", importPanel.gameObject.activeSelf == false);
 
-        // 清掉流程中导入的测试记录，回环测试前恢复到 基线+自建2笔
+        // 清掉流程中导入的测试记录，计数比对测试前恢复到 基线+自建2笔
         accountManager.DeleteRecord(imported.Id);
+
+        // 6.5) 计数比对（同内容多笔合法）：库 1 笔、文件 2 笔同内容 → 进 1 跳 1；
+        //      文件里全新三元组 1 行 → 进 1。合计新增 2。
+        string countPath = Path.Combine(tempDir, "AccountBook_W_countcheck.xlsx");
+        BuildCountFile(countPath, selfA, today);
+        importPanel.Open();
+        importPanel.HandlePickedPath(countPath);
+        allPass &= Check("计数：统计行文案", txtStats.text == "共 3 行 ｜ 可导入 2 笔 ｜ 跳过 1 笔（重复） ｜ 格式错误 0 行");
+        allPass &= Check("计数：确认可用", btnConfirm.interactable);
+        btnConfirm.onClick.Invoke();
+        allPass &= Check("计数：Toast 新增 2 笔", toastLabel.text == "导入完成：新增 2 笔，跳过 1 笔");
+        List<AccountRecord> afterCount = accountManager.GetAllRecords();
+        allPass &= Check("计数：库内 = 基线+2", afterCount.Count == baseCount + 2);
+        allPass &= Check("计数：同三元组库内变 2 笔",
+            afterCount.FindAll(r => r != null && r.Date == selfA.Date && r.Category == selfA.Category &&
+                r.AmountFen == selfA.AmountFen && r.Type == selfA.Type).Count == 2);
+        AccountRecord selfC = afterCount.Find(r => r != null && r.Note == SelfCheckNote && r.Category == "数码");
+        allPass &= Check("计数：全新三元组入库（数码 8888）", selfC != null && selfC.AmountFen == 8888);
+
+        // 清理计数测试导入的两笔，回环测试前恢复到 基线+自建2笔
+        if (selfC != null)
+        {
+            accountManager.DeleteRecord(selfC.Id);
+        }
+
+        AccountRecord selfACopy = afterCount.Find(r => r != null && r.Note == SelfCheckNote &&
+            r.Category == selfA.Category && r.AmountFen == selfA.AmountFen && r.Id != selfA.Id);
+
+        if (selfACopy != null)
+        {
+            accountManager.DeleteRecord(selfACopy.Id);
+        }
+
+        allPass &= Check("计数：清理后恢复基线+2", accountManager.GetAllRecords().Count == baseCount);
 
         // 7) 回环测试（验收第 1 条：删光 → 导入 → 与导出前完全一致）
         allPass &= RunRoundtripCheck(accountManager, importPanel, btnConfirm, txtStats, tempDir, baselineOriginal, ref allPass);
@@ -401,6 +436,7 @@ public static class ImportFlowCheck
         TryDeleteFile(xlsNamePath);
         TryDeleteFile(goodNamePath);
         TryDeleteFile(mixedPath);
+        TryDeleteFile(countPath);
 
         return allPass;
     }
@@ -581,6 +617,42 @@ public static class ImportFlowCheck
             sheet.Cells[5, 3].Value = "书籍";
             sheet.Cells[5, 4].Value = 25.0;
             sheet.Cells[5, 5].Value = SelfCheckNote;
+
+            package.Save();
+        }
+    }
+
+    /// <summary>
+    /// 计数比对文件：行2/行3 = 重复锚点同内容两行（库内已有 1 笔）→ 进 1 跳 1；
+    /// 行4 = 全新三元组（数码 88.88，备注自检数据）→ 进 1
+    /// </summary>
+    private static void BuildCountFile(string path, AccountRecord duplicateAnchor, string date)
+    {
+        TryDeleteFile(path);
+
+        using (ExcelPackage package = new ExcelPackage(new FileInfo(path)))
+        {
+            ExcelWorksheet sheet = package.Workbook.Worksheets.Add(ExcelExportService.SheetName);
+
+            for (int col = 0; col < ExcelExportService.HeaderTexts.Length; col++)
+            {
+                sheet.Cells[1, col + 1].Value = ExcelExportService.HeaderTexts[col];
+            }
+
+            for (int row = 2; row <= 3; row++)
+            {
+                sheet.Cells[row, 1].Value = duplicateAnchor.Date;
+                sheet.Cells[row, 2].Value = duplicateAnchor.Type == (int)RecordType.Income ? "收入" : "支出";
+                sheet.Cells[row, 3].Value = duplicateAnchor.Category;
+                sheet.Cells[row, 4].Value = duplicateAnchor.AmountFen / 100.0;
+                sheet.Cells[row, 5].Value = duplicateAnchor.Note;
+            }
+
+            sheet.Cells[4, 1].Value = date;
+            sheet.Cells[4, 2].Value = "支出";
+            sheet.Cells[4, 3].Value = "数码";
+            sheet.Cells[4, 4].Value = 88.88;
+            sheet.Cells[4, 5].Value = SelfCheckNote;
 
             package.Save();
         }

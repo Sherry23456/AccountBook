@@ -9,7 +9,8 @@ using UnityEngine;
 /// 导出：周期查询（AccountManager.GetRecordsInRange，与图表页同口径）→ 固定文件名 →
 /// 先写 persistentDataPath 临时文件 → 复制到 Download（安卓直写失败走 MediaStore 兜底）→
 /// 清理临时文件。导入：文件名白名单（AccountBook_*.xlsx）→ 预解析回填 UI（不写库）→
-/// 用户确认后三元组去重合并 → 一次落 JSON → OnDataChanged 触发刷新。
+/// 用户确认后三元组**计数比对**合并（同内容多笔合法：库内已有几笔跳过几笔，
+/// 文件比库多几笔就导入几笔）→ 一次落 JSON → OnDataChanged 触发刷新。
 /// </summary>
 public class ExcelTransferManager : MonoBehaviour
 {
@@ -130,8 +131,9 @@ public class ExcelTransferManager : MonoBehaviour
     private const string ImportFileNameSuffix = ".xlsx";
 
     /// <summary>
-    /// 预解析（不写库）：文件名白名单 → ReadExcel → 与现有库做三元组重复统计。
-    /// 成功 true：result 带解析产物，duplicateCount 为 Valid 中与库内完全重复的笔数；
+    /// 预解析（不写库）：文件名白名单 → ReadExcel → 与现有库做三元组计数比对。
+    /// 成功 true：result 带解析产物，duplicateCount 为文件中多余的重复笔数
+    /// （库内已有几笔同三元组就跳过几笔，多出来的算可导入——一天多次同额消费不误判）；
     /// 失败（文件名不符/格式不符/读失败）返回 false，resultMessage 带原因。
     /// </summary>
     public bool PreparseImport(string path, out ImportParseResult result, out int duplicateCount, out string resultMessage)
@@ -159,13 +161,16 @@ public class ExcelTransferManager : MonoBehaviour
             return false;
         }
 
-        HashSet<string> existingTriples = BuildTripleSet(accountManager.GetAllRecords());
+        Dictionary<string, int> remaining = CountTriples(accountManager.GetAllRecords());
 
         for (int i = 0; i < result.Valid.Count; i++)
         {
-            if (existingTriples.Contains(BuildTripleKey(result.Valid[i])))
+            string key = BuildTripleKey(result.Valid[i]);
+
+            if (remaining.TryGetValue(key, out int left) && left > 0)
             {
                 duplicateCount++;
+                remaining[key] = left - 1;
             }
         }
 
@@ -173,8 +178,9 @@ public class ExcelTransferManager : MonoBehaviour
     }
 
     /// <summary>
-    /// 确认导入（用户在弹窗点确认后调用）：三元组去重合并 → 一次落 JSON → OnDataChanged。
-    /// importedCount=新增笔数，skippedCount=跳过笔数（库内重复+文件内互相重复）。
+    /// 确认导入（用户在弹窗点确认后调用）：三元组计数比对合并 → 一次落 JSON → OnDataChanged。
+    /// 库内已有几笔同三元组（Date+Category+AmountFen+Type）就跳过几笔，文件多出的笔数照常导入，
+    /// 文件内互相重复也按数量对数量；importedCount=新增笔数，skippedCount=跳过笔数。
     /// 全部重复/无可导入数据返回 false 不落库，resultMessage 带原因。
     /// </summary>
     public bool ConfirmImport(ImportParseResult parse, out int importedCount, out int skippedCount, out string resultMessage)
@@ -198,7 +204,7 @@ public class ExcelTransferManager : MonoBehaviour
         }
 
         List<AccountRecord> merged = accountManager.GetAllRecords();
-        HashSet<string> triples = BuildTripleSet(merged);
+        Dictionary<string, int> remaining = CountTriples(merged);
         string createdAt = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture);
 
         for (int i = 0; i < parse.Valid.Count; i++)
@@ -212,10 +218,11 @@ public class ExcelTransferManager : MonoBehaviour
 
             string key = BuildTripleKey(parsed);
 
-            // 三元组（Date+Category+AmountFen+Type）完全相同者跳过（步骤06 §2.2 设计决策）
-            if (triples.Contains(key))
+            // 计数比对：该三元组还有库内余额就跳过（余额用尽后再出现的同内容行是新的一笔）
+            if (remaining.TryGetValue(key, out int left) && left > 0)
             {
                 skippedCount++;
+                remaining[key] = left - 1;
                 continue;
             }
 
@@ -231,7 +238,6 @@ public class ExcelTransferManager : MonoBehaviour
             };
 
             merged.Add(record);
-            triples.Add(key);
             importedCount++;
         }
 
@@ -258,31 +264,45 @@ public class ExcelTransferManager : MonoBehaviour
     }
 
     /// <summary>
-    /// 三元组去重键：Date + Category + AmountFen + Type
+    /// 三元组去重键：Date + Category + AmountFen + Type（备注不参与——改备注请在 App 内编辑）
     /// </summary>
     private static string BuildTripleKey(AccountRecord record)
     {
         return record.Date + "|" + record.Category + "|" + record.AmountFen + "|" + record.Type;
     }
 
-    private static HashSet<string> BuildTripleSet(List<AccountRecord> records)
+    /// <summary>
+    /// 库内每个三元组的笔数（计数比对用：同内容多笔合法，只对"多出的部分"导入）
+    /// </summary>
+    private static Dictionary<string, int> CountTriples(List<AccountRecord> records)
     {
-        HashSet<string> set = new HashSet<string>();
+        Dictionary<string, int> counts = new Dictionary<string, int>();
 
         if (records == null)
         {
-            return set;
+            return counts;
         }
 
         for (int i = 0; i < records.Count; i++)
         {
-            if (records[i] != null)
+            if (records[i] == null)
             {
-                set.Add(BuildTripleKey(records[i]));
+                continue;
+            }
+
+            string key = BuildTripleKey(records[i]);
+
+            if (counts.ContainsKey(key))
+            {
+                counts[key]++;
+            }
+            else
+            {
+                counts[key] = 1;
             }
         }
 
-        return set;
+        return counts;
     }
 
     // ---------- Download 写入（照搬 BackupDataManager，仅 MIME 改 xlsx） ----------

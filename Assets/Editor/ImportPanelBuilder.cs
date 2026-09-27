@@ -8,8 +8,9 @@ using TMPro;
 
 /// <summary>
 /// 步骤06 一键搭建导入弹窗：在步骤01 预留的 ImportPanel 壳（遮罩+Dialog+标题）里填充
-/// 风险提示行 + 选择文件按钮 + 文件名/预解析统计/错误预览区 + 确认/取消按钮，
-/// 挂 ImportPanelUI 接线；图表页 btnImport 启用并回填 ChartPanelUI.importPanel 引用
+/// 导入规则说明块（4 行小字：不删不改/文件与列格式/重复跳过计数比对）+ 选择文件按钮 +
+/// 文件名/预解析统计/错误预览区 + 确认/取消按钮，挂 ImportPanelUI 接线；
+/// 图表页 btnImport 启用并回填 ChartPanelUI.importPanel 引用
 /// → 存场景 → 预固化字形 → 接线自检。ExcelTransferManager/Toast 复用步骤05 产物（缺失报错）。
 /// 幂等：重复运行先清 Dialog 内容重建。
 /// </summary>
@@ -100,7 +101,7 @@ public static class ImportPanelBuilder
         }
 
         RectTransform dialogRect = (RectTransform)dialog;
-        dialogRect.sizeDelta = new Vector2(620f, 660f);   // 壳默认 420 高，导入弹窗含统计+错误区更高
+        dialogRect.sizeDelta = new Vector2(620f, 790f);   // 壳默认 420 高；导入弹窗含规则块+统计+错误区
 
         ClearChildren(dialog);
 
@@ -171,14 +172,14 @@ public static class ImportPanelBuilder
 
         PrePopulateFontGlyphs(font);
 
-        bool pass = VerifyWiring(refs, panelUi, excelTransferManager, toastUi, chartPanelUi);
+        bool pass = VerifyWiring(dialog, refs, panelUi, excelTransferManager, toastUi, chartPanelUi);
         Debug.Log($"[ImportBuild] ===== 步骤06 导入弹窗搭建完成，接线自检 {(pass ? "通过" : "失败(见上方 [ImportBuild] FAIL 日志)")} =====");
     }
 
     // ---------- UI 搭建 ----------
 
     /// <summary>
-    /// Dialog 内容纵向堆叠（高 660）：标题 96 / 风险提示 56 / 选文件按钮 96 /
+    /// Dialog 内容纵向堆叠（高 790）：标题 96 / 规则说明 170 / 选文件按钮 96 /
     /// 文件名 56 / 统计 90 / 错误预览 170 / 按钮行 110
     /// </summary>
     private static PanelRefs BuildImportDialog(Transform dialog, TMP_FontAsset font)
@@ -192,18 +193,25 @@ public static class ImportPanelBuilder
         titleArea.anchoredPosition = new Vector2(0f, -48f);
         CreateStretchLabel(titleArea, "Title", "导入数据", font, 44f, ColBlack, TextAlignmentOptions.Center);
 
-        // 风险提示（策划案 §5.6）
-        RectTransform riskRow = CreateRect(dialog, "RiskRow",
+        // 导入规则说明（策划案 §5.6 风险提示扩写，用户不读代码得看得懂格式）；
+        // 编号列表不用特殊符号（・等字形字库缺，渲染方块）
+        RectTransform rulesRow = CreateRect(dialog, "RulesRow",
             new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0.5f, 1f));
-        riskRow.sizeDelta = new Vector2(-60f, 56f);
-        riskRow.anchoredPosition = new Vector2(0f, -124f);
-        CreateStretchLabel(riskRow, "Label", "导入不会删除现有数据，重复记录会自动跳过", font, 26f, ColGray, TextAlignmentOptions.Center);
+        rulesRow.sizeDelta = new Vector2(-60f, 170f);
+        rulesRow.anchoredPosition = new Vector2(0f, -181f);
+        TextMeshProUGUI rulesLabel = CreateStretchLabel(rulesRow, "Label",
+            "1. 导入不会删除、也不会修改现有数据\n" +
+            "2. 仅支持本 App 导出的 AccountBook_*.xlsx 文件\n" +
+            "3. 列：日期 yyyy-MM-dd｜类型 支出/收入｜分类｜金额｜备注\n" +
+            "4. 重复自动跳过：同内容多几笔就导几笔",
+            font, 24f, ColGray, TextAlignmentOptions.TopLeft);
+        rulesLabel.margin = new Vector4(24f, 12f, 24f, 8f);
 
         // 选择文件按钮（黄底黑字，通栏）
         RectTransform pickRow = CreateRect(dialog, "PickRow",
             new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0.5f, 1f));
         pickRow.sizeDelta = new Vector2(0f, 96f);
-        pickRow.anchoredPosition = new Vector2(0f, -200f);
+        pickRow.anchoredPosition = new Vector2(0f, -314f);
 
         refs.BtnPick = CreateColorButton(pickRow, "btnPick", "选择 Excel 文件", font,
             new Vector2(0f, 0f), new Vector2(1f, 1f), new Vector2(0.5f, 0.5f),
@@ -214,21 +222,21 @@ public static class ImportPanelBuilder
         RectTransform fileNameRect = CreateRect(dialog, "txtFileName",
             new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0.5f, 1f));
         fileNameRect.sizeDelta = new Vector2(-60f, 56f);
-        fileNameRect.anchoredPosition = new Vector2(0f, -276f);
+        fileNameRect.anchoredPosition = new Vector2(0f, -390f);
         refs.TxtFileName = CreateStretchLabel(fileNameRect, "Label", "未选择文件", font, 28f, ColGrayText, TextAlignmentOptions.Center);
 
         // 预解析统计（可换行两行）
         RectTransform statsRect = CreateRect(dialog, "txtStats",
             new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0.5f, 1f));
         statsRect.sizeDelta = new Vector2(-60f, 90f);
-        statsRect.anchoredPosition = new Vector2(0f, -349f);
+        statsRect.anchoredPosition = new Vector2(0f, -463f);
         refs.TxtStats = CreateStretchLabel(statsRect, "Label", "选择文件后自动预解析", font, 30f, ColBlack, TextAlignmentOptions.Center);
 
         // 错误行预览（前 5 条，红色，左上对齐）
         RectTransform errorsRect = CreateRect(dialog, "txtErrors",
             new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0.5f, 1f));
         errorsRect.sizeDelta = new Vector2(-60f, 170f);
-        errorsRect.anchoredPosition = new Vector2(0f, -479f);
+        errorsRect.anchoredPosition = new Vector2(0f, -593f);
         refs.TxtErrors = CreateStretchLabel(errorsRect, "Label", "", font, 28f, ColError, TextAlignmentOptions.TopLeft);
         refs.TxtErrors.margin = new Vector4(24f, 12f, 24f, 6f);
 
@@ -236,7 +244,7 @@ public static class ImportPanelBuilder
         RectTransform btnRow = CreateRect(dialog, "BtnRow",
             new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0.5f, 1f));
         btnRow.sizeDelta = new Vector2(0f, 110f);
-        btnRow.anchoredPosition = new Vector2(0f, -605f);
+        btnRow.anchoredPosition = new Vector2(0f, -733f);
 
         refs.BtnConfirm = CreateColorButton(btnRow, "btnConfirm", "确认导入", font,
             new Vector2(0f, 0f), new Vector2(0.5f, 1f), new Vector2(0.5f, 0.5f),
@@ -257,7 +265,8 @@ public static class ImportPanelBuilder
     private static void PrePopulateFontGlyphs(TMP_FontAsset font)
     {
         string chars = "导入数据不会删除现有重复记录会自动跳过选择件后预解析未行可笔格式错误请式符在或法访败" +
-                       "确认完成新增全部取消问授权访问不存读取失败内容为空日期能别类型支收金额正数 AccountBook_*.xlsxExcel" +
+                       "确认完成新增全部取消问授权访问不存读取失败内容为空日期能别类型支收金额正数修改仅比量对多几就分备注、 " +
+                       "AccountBook_*.xlsxExcel" +
                        "0123456789｜（）：，.-~_";
         bool ok = font.TryAddCharacters(chars);
 
@@ -276,10 +285,10 @@ public static class ImportPanelBuilder
     // ---------- 接线自检 ----------
 
     /// <summary>
-    /// 搭建即自检：逐项核对 ImportPanelUI 序列化引用、ExcelTransferManager、
+    /// 搭建即自检：逐项核对 ImportPanelUI 序列化引用、导入规则块、ExcelTransferManager、
     /// UIManager/ChartPanelUI 反向引用与导入按钮可用性、ToastUI 存在
     /// </summary>
-    private static bool VerifyWiring(PanelRefs refs, ImportPanelUI panelUi, ExcelTransferManager excelTransferManager,
+    private static bool VerifyWiring(Transform dialog, PanelRefs refs, ImportPanelUI panelUi, ExcelTransferManager excelTransferManager,
         ToastUI toastUi, ChartPanelUI chartPanelUi)
     {
         bool allPass = true;
@@ -289,6 +298,11 @@ public static class ImportPanelBuilder
         allPass &= CheckRef(so, "btnConfirm") && CheckRef(so, "btnCancel");
         allPass &= Check("ExcelTransferManager 已接入导入弹窗",
             excelTransferManager != null && so.FindProperty("excelTransferManager").objectReferenceValue == excelTransferManager);
+
+        Transform rulesLabel = dialog.Find("RulesRow/Label");
+        allPass &= Check("导入规则说明块已搭建（4 行规则文案）",
+            rulesLabel != null && rulesLabel.GetComponent<TextMeshProUGUI>() != null &&
+            rulesLabel.GetComponent<TextMeshProUGUI>().text.Contains("AccountBook_*.xlsx"));
 
         UIManager uiManager = UnityEngine.Object.FindFirstObjectByType<UIManager>();
         allPass &= Check("UIManager.importPanel 指向 ImportPanel",
