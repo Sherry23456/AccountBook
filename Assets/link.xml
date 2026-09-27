@@ -1,0 +1,5 @@
+<linker>
+  <assembly fullname="EPPlus" preserve="all"/>
+  <assembly fullname="System.Xml" preserve="all"/>
+  <assembly fullname="System.Xml.Linq" preserve="all"/>
+</linker>

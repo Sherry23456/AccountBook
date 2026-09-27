@@ -33,6 +33,9 @@ public class ChartPanelUI : MonoBehaviour
     [SerializeField] private Button btnExport;
     [SerializeField] private Button btnImport;
 
+    [Header("Export Popup")]
+    [SerializeField] private ExportPanelUI exportPanel;   // 步骤05 接线：点导出带入当前档位与周期
+
     [Header("Range Toggles")]
     [SerializeField] private Toggle toggleWeek;
     [SerializeField] private Toggle toggleMonth;
@@ -154,6 +157,11 @@ public class ChartPanelUI : MonoBehaviour
         {
             iconProvider = FindFirstObjectByType<CategoryIconProvider>();
         }
+
+        if (exportPanel == null)
+        {
+            exportPanel = FindFirstObjectByType<ExportPanelUI>(FindObjectsInactive.Include);
+        }
     }
 
     /// <summary>
@@ -162,6 +170,7 @@ public class ChartPanelUI : MonoBehaviour
     private void RegisterEvents()
     {
         RegisterButton(btnType, OnTypeClicked);
+        RegisterButton(btnExport, OnExportClicked);
 
         RegisterToggle(toggleWeek, ExportRange.Week);
         RegisterToggle(toggleMonth, ExportRange.Month);
@@ -211,6 +220,25 @@ public class ChartPanelUI : MonoBehaviour
     {
         currentType = currentType == RecordType.Expense ? RecordType.Income : RecordType.Expense;
         RefreshAll();
+    }
+
+    /// <summary>
+    /// 导出数据入口（步骤05）：把当前档位与周期传给导出弹窗并打开
+    /// </summary>
+    private void OnExportClicked()
+    {
+        if (exportPanel == null)
+        {
+            exportPanel = FindFirstObjectByType<ExportPanelUI>(FindObjectsInactive.Include);
+        }
+
+        if (exportPanel == null)
+        {
+            Debug.LogWarning("[ChartPanelUI] 场景中没有 ExportPanelUI，请先跑 AccountBook/10-搭建导出弹窗");
+            return;
+        }
+
+        exportPanel.Open(currentRange, lastStartDate, lastEndDate);
     }
 
     /// <summary>

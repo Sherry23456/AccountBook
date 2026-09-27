@@ -352,8 +352,8 @@ public static class ChartFlowCheck
         allPass &= Check("收入排行榜内容一致", chart.LastResult != null &&
             RanksMatch(chart.LastResult.Ranks, expectedIncomeRanks) && RankItemsMatch(rankContent, expectedIncomeRanks));
 
-        // 10) 导入导出置灰（步骤 05/06 接线）
-        allPass &= Check("导出按钮置灰", btnExport.interactable == false);
+        // 10) 导出已启用（步骤05 接线），导入仍置灰（步骤06 接线）
+        allPass &= Check("导出按钮已启用(步骤05)", btnExport.interactable == true);
         allPass &= Check("导入按钮置灰", btnImport.interactable == false);
 
         // 11) 切回明细页
