@@ -1,13 +1,15 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using UnityEngine;
 
 /// <summary>
-/// Excel 导出总流程（步骤05，策划案 §6.2，骨架照搬 QuikDelivery BackupDataManager）：
-/// 周期查询（AccountManager.GetRecordsInRange，与图表页同口径）→ 固定文件名 →
+/// Excel 导出/导入总流程（步骤05 §6.2 + 步骤06 §6.3，骨架照搬 QuikDelivery BackupDataManager）：
+/// 导出：周期查询（AccountManager.GetRecordsInRange，与图表页同口径）→ 固定文件名 →
 /// 先写 persistentDataPath 临时文件 → 复制到 Download（安卓直写失败走 MediaStore 兜底）→
-/// 清理临时文件。导入半边（步骤06）后续在此类追加 ImportExcel。
+/// 清理临时文件。导入：文件名白名单（AccountBook_*.xlsx）→ 预解析回填 UI（不写库）→
+/// 用户确认后三元组去重合并 → 一次落 JSON → OnDataChanged 触发刷新。
 /// </summary>
 public class ExcelTransferManager : MonoBehaviour
 {
@@ -117,6 +119,170 @@ public class ExcelTransferManager : MonoBehaviour
             default:
                 return "AccountBook_Unknown.xlsx";
         }
+    }
+
+    // ---------- 导入（步骤06，策划案 §6.3） ----------
+
+    /// <summary>
+    /// 导入文件名白名单（照搬 BackupDataManager 对 backup_*.json 的校验思路，策划案 §6.1）
+    /// </summary>
+    private const string ImportFileNamePrefix = "AccountBook_";
+    private const string ImportFileNameSuffix = ".xlsx";
+
+    /// <summary>
+    /// 预解析（不写库）：文件名白名单 → ReadExcel → 与现有库做三元组重复统计。
+    /// 成功 true：result 带解析产物，duplicateCount 为 Valid 中与库内完全重复的笔数；
+    /// 失败（文件名不符/格式不符/读失败）返回 false，resultMessage 带原因。
+    /// </summary>
+    public bool PreparseImport(string path, out ImportParseResult result, out int duplicateCount, out string resultMessage)
+    {
+        result = null;
+        duplicateCount = 0;
+        resultMessage = string.Empty;
+
+        if (!IsAllowedImportFileName(Path.GetFileName(path)))
+        {
+            resultMessage = "请选择 AccountBook_*.xlsx 格式文件";
+            return false;
+        }
+
+        TryInitializeDependencies();
+
+        if (accountManager == null)
+        {
+            resultMessage = "AccountManager 引用缺失";
+            return false;
+        }
+
+        if (!ExcelImportService.ReadExcel(path, out result, out resultMessage))
+        {
+            return false;
+        }
+
+        HashSet<string> existingTriples = BuildTripleSet(accountManager.GetAllRecords());
+
+        for (int i = 0; i < result.Valid.Count; i++)
+        {
+            if (existingTriples.Contains(BuildTripleKey(result.Valid[i])))
+            {
+                duplicateCount++;
+            }
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// 确认导入（用户在弹窗点确认后调用）：三元组去重合并 → 一次落 JSON → OnDataChanged。
+    /// importedCount=新增笔数，skippedCount=跳过笔数（库内重复+文件内互相重复）。
+    /// 全部重复/无可导入数据返回 false 不落库，resultMessage 带原因。
+    /// </summary>
+    public bool ConfirmImport(ImportParseResult parse, out int importedCount, out int skippedCount, out string resultMessage)
+    {
+        importedCount = 0;
+        skippedCount = 0;
+        resultMessage = string.Empty;
+
+        if (parse == null || parse.Valid.Count == 0)
+        {
+            resultMessage = "没有可导入的记录";
+            return false;
+        }
+
+        TryInitializeDependencies();
+
+        if (accountManager == null)
+        {
+            resultMessage = "AccountManager 引用缺失";
+            return false;
+        }
+
+        List<AccountRecord> merged = accountManager.GetAllRecords();
+        HashSet<string> triples = BuildTripleSet(merged);
+        string createdAt = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture);
+
+        for (int i = 0; i < parse.Valid.Count; i++)
+        {
+            AccountRecord parsed = parse.Valid[i];
+
+            if (parsed == null)
+            {
+                continue;
+            }
+
+            string key = BuildTripleKey(parsed);
+
+            // 三元组（Date+Category+AmountFen+Type）完全相同者跳过（步骤06 §2.2 设计决策）
+            if (triples.Contains(key))
+            {
+                skippedCount++;
+                continue;
+            }
+
+            // 全新 Id（ctor 默认生成）；CreatedAt=导入时刻，与手动补记同口径（Date 来自表格归位周期）
+            AccountRecord record = new AccountRecord
+            {
+                Type = parsed.Type,
+                Category = parsed.Category,
+                AmountFen = parsed.AmountFen,
+                Date = parsed.Date,
+                Note = parsed.Note,
+                CreatedAt = createdAt,
+            };
+
+            merged.Add(record);
+            triples.Add(key);
+            importedCount++;
+        }
+
+        if (importedCount == 0)
+        {
+            resultMessage = "没有可导入的新记录（全部重复）";
+            return false;
+        }
+
+        accountManager.ReplaceAllRecords(merged);
+        resultMessage = $"导入完成：新增 {importedCount} 笔" + (skippedCount > 0 ? $"，跳过 {skippedCount} 笔" : "");
+        Debug.Log($"[ExcelTransferManager] {resultMessage}");
+        return true;
+    }
+
+    /// <summary>
+    /// 文件名必须 AccountBook_ 开头且 .xlsx 结尾（对 xls 老格式与非本 App 命名一律拒绝）
+    /// </summary>
+    private static bool IsAllowedImportFileName(string fileName)
+    {
+        return !string.IsNullOrWhiteSpace(fileName) &&
+               fileName.StartsWith(ImportFileNamePrefix, StringComparison.Ordinal) &&
+               fileName.EndsWith(ImportFileNameSuffix, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// 三元组去重键：Date + Category + AmountFen + Type
+    /// </summary>
+    private static string BuildTripleKey(AccountRecord record)
+    {
+        return record.Date + "|" + record.Category + "|" + record.AmountFen + "|" + record.Type;
+    }
+
+    private static HashSet<string> BuildTripleSet(List<AccountRecord> records)
+    {
+        HashSet<string> set = new HashSet<string>();
+
+        if (records == null)
+        {
+            return set;
+        }
+
+        for (int i = 0; i < records.Count; i++)
+        {
+            if (records[i] != null)
+            {
+                set.Add(BuildTripleKey(records[i]));
+            }
+        }
+
+        return set;
     }
 
     // ---------- Download 写入（照搬 BackupDataManager，仅 MIME 改 xlsx） ----------

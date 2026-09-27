@@ -143,6 +143,40 @@ public class AccountManager : MonoBehaviour
     }
 
     /// <summary>
+    /// 全部记录读取（Excel 导入合并比对用，转传仓储）
+    /// </summary>
+    public List<AccountRecord> GetAllRecords()
+    {
+        TryInitializeDependencies();
+
+        if (accountRepository == null)
+        {
+            Debug.LogWarning("[AccountManager] AccountRepository 引用缺失.");
+            return new List<AccountRecord>();
+        }
+
+        return accountRepository.LoadAllRecords();
+    }
+
+    /// <summary>
+    /// 全量替换保存（Excel 导入合并后一次落 JSON 用，转传仓储），成功后触发 OnDataChanged
+    /// </summary>
+    public bool ReplaceAllRecords(List<AccountRecord> records)
+    {
+        TryInitializeDependencies();
+
+        if (accountRepository == null)
+        {
+            Debug.LogWarning("[AccountManager] AccountRepository 引用缺失.");
+            return false;
+        }
+
+        accountRepository.SaveAllRecords(records);
+        OnDataChanged?.Invoke();
+        return true;
+    }
+
+    /// <summary>
     /// 某月收支汇总（yyyyMM，金额单位：分）
     /// </summary>
     public void GetMonthSummary(string yyyyMM, out long incomeFen, out long expenseFen)
