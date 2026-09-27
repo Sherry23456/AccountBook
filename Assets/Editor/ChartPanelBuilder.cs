@@ -369,7 +369,9 @@ public static class ChartPanelBuilder
 
     /// <summary>
     /// ChartPanel 全量重建：灰白底全屏 + 内容容器（底部让出底栏 170）
-    /// 纵向堆叠：TopBar 300 / PeriodStrip 104 / SummaryRow 150 / ChartArea 610 / RankTitle 70 / 排行滚动区
+    /// 纵向堆叠：TopBar 460 / PeriodStrip 104 / SummaryRow 150 / ChartArea 610 / RankTitle 70 / 排行滚动区
+    /// TopBar 460：Row1(118) + Row2(140) 顶底两锚占 258，剩余 202 给真机安全区
+    /// （挖孔屏 insets 实测 ~152 单位，300 高时两行压叠——2026-09 真机错位根因）
     /// </summary>
     private static PanelRefs BuildChartPanel(Transform canvas, TMP_FontAsset font, Sprite circleSprite,
         RankItemUI rankItemPrefab, PeriodStripButton periodButtonPrefab)
@@ -410,7 +412,7 @@ public static class ChartPanelBuilder
     private static void BuildTopBar(RectTransform content, TMP_FontAsset font, PanelRefs refs)
     {
         RectTransform topBar = CreateRect(content, "TopBar", new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0.5f, 1f));
-        topBar.sizeDelta = new Vector2(0f, 300f);
+        topBar.sizeDelta = new Vector2(0f, 460f);   // 300 时真机 insets(~152) 把 Row1 压进 Row2，见类注释
         Image topBarImage = topBar.gameObject.AddComponent<Image>();
         topBarImage.color = ColYellow;
         topBarImage.raycastTarget = false;
@@ -512,7 +514,7 @@ public static class ChartPanelBuilder
     {
         RectTransform strip = CreateRect(content, "PeriodStrip", new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0.5f, 1f));
         strip.sizeDelta = new Vector2(0f, 104f);
-        strip.anchoredPosition = new Vector2(0f, -308f);
+        strip.anchoredPosition = new Vector2(0f, -468f);
 
         RectTransform viewport = CreateRect(strip.transform, "Viewport", Vector2.zero, Vector2.one, new Vector2(0.5f, 0.5f));
         viewport.offsetMin = Vector2.zero;
@@ -554,7 +556,7 @@ public static class ChartPanelBuilder
     {
         RectTransform row = CreateRect(content, "SummaryRow", new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0.5f, 1f));
         row.sizeDelta = new Vector2(0f, 150f);
-        row.anchoredPosition = new Vector2(0f, -412f);
+        row.anchoredPosition = new Vector2(0f, -572f);
 
         refs.TxtTotalCaption = BuildSummaryColumn(row, "TotalCol", "总支出", font, true, out refs.TxtTotal);
         BuildSummaryColumn(row, "AvgCol", "平均值", font, false, out refs.TxtAvg);
@@ -592,7 +594,7 @@ public static class ChartPanelBuilder
     {
         RectTransform area = CreateRect(content, "ChartArea", new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0.5f, 1f));
         area.sizeDelta = new Vector2(0f, 610f);
-        area.anchoredPosition = new Vector2(0f, -562f);
+        area.anchoredPosition = new Vector2(0f, -722f);
 
         // 折线图本体：pivot 左下，X 轴标签与气泡共用这套坐标（步骤04 §4）
         // new GameObject 的 RectTransform 默认 sizeDelta=(100,100)，拉伸锚点下必须显式清零，
@@ -653,7 +655,7 @@ public static class ChartPanelBuilder
     {
         RectTransform titleRow = CreateRect(content, "RankTitleRow", new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0.5f, 1f));
         titleRow.sizeDelta = new Vector2(0f, 70f);
-        titleRow.anchoredPosition = new Vector2(0f, -1172f);
+        titleRow.anchoredPosition = new Vector2(0f, -1332f);
 
         TextMeshProUGUI title = CreateAnchoredLabel(titleRow, "Text", "支出排行榜", font, 34f, ColBlack,
             TextAlignmentOptions.Left, new Vector2(0f, 0f), new Vector2(1f, 1f), new Vector2(0.5f, 0.5f),
@@ -664,7 +666,7 @@ public static class ChartPanelBuilder
         GameObject scrollView = CreateRect(content, "RankScrollView", Vector2.zero, Vector2.one, new Vector2(0.5f, 0.5f)).gameObject;
         RectTransform scrollRectT = scrollView.GetComponent<RectTransform>();
         scrollRectT.offsetMin = Vector2.zero;
-        scrollRectT.offsetMax = new Vector2(0f, -1242f);   // RankTitle 底边
+        scrollRectT.offsetMax = new Vector2(0f, -1402f);   // RankTitle 底边
 
         RectTransform viewport = CreateRect(scrollView.transform, "Viewport", Vector2.zero, Vector2.one, new Vector2(0.5f, 0.5f));
         viewport.offsetMin = Vector2.zero;

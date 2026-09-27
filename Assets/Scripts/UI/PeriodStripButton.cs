@@ -4,7 +4,7 @@ using TMPro;
 
 /// <summary>
 /// 周期条按钮（步骤04 §2.2）：白底黑字 / 选中黑底白字，由 ChartPanelBuilder 生成预制体，
-/// ChartPanelUI 每次档位切换重建 6 个（左旧右新，本期在最右）。
+/// ChartPanelUI 每次档位切换重建（月档 1 月..当前月，周/年档 6 个；左旧右新，本期在最右）。
 /// </summary>
 public class PeriodStripButton : MonoBehaviour
 {

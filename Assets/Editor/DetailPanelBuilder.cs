@@ -281,6 +281,7 @@ public static class DetailPanelBuilder
 
         chars.Append("支出收入取消今天退格完成备注：点击填写备分明细图表记账元一二三四五六日回月年0123456789.+-");
         chars.Append("这个月还没有记录星期删除无法恢复确认吗本笔<>:");
+        chars.Append("修改要对这笔做什么选择操作");
 
         bool ok = font.TryAddCharacters(chars.ToString());
 
@@ -338,7 +339,7 @@ public static class DetailPanelBuilder
     private static void BuildTopBar(RectTransform content, TMP_FontAsset font, PanelRefs refs)
     {
         RectTransform topBar = CreateRect(content, "TopBar", new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0.5f, 1f));
-        topBar.sizeDelta = new Vector2(0f, 300f);
+        topBar.sizeDelta = new Vector2(0f, 460f);   // 300 时真机 insets(~152) 把 MonthRow 压进 SummaryRow（2026-09 真机错位）
         Image topBarImage = topBar.gameObject.AddComponent<Image>();
         topBarImage.color = ColYellow;
         topBarImage.raycastTarget = false;
@@ -398,7 +399,7 @@ public static class DetailPanelBuilder
     }
 
     /// <summary>
-    /// 分组列表：ScrollView（顶栏 300 以下到底，弹性吸收 16:9~21:9 高度差）
+    /// 分组列表：ScrollView（顶栏 460 以下到底，弹性吸收 16:9~21:9 高度差）
     /// Content = 平铺 组头行 + 记录行（单层 VerticalLayoutGroup，无嵌套 Fitter）
     /// </summary>
     private static void BuildListScrollView(RectTransform content, TMP_FontAsset font, PanelRefs refs)
@@ -406,7 +407,7 @@ public static class DetailPanelBuilder
         GameObject scrollView = CreateRect(content, "ListScrollView", Vector2.zero, Vector2.one, new Vector2(0.5f, 0.5f)).gameObject;
         RectTransform scrollRectT = scrollView.GetComponent<RectTransform>();
         scrollRectT.offsetMin = Vector2.zero;
-        scrollRectT.offsetMax = new Vector2(0f, -300f);   // TopBar 底边
+        scrollRectT.offsetMax = new Vector2(0f, -460f);   // TopBar 底边
 
         RectTransform viewport = CreateRect(scrollView.transform, "Viewport", Vector2.zero, Vector2.one, new Vector2(0.5f, 0.5f));
         viewport.offsetMin = Vector2.zero;

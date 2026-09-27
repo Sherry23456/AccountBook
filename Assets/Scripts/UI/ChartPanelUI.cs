@@ -7,8 +7,8 @@ using UnityEngine.UI;
 using TMPro;
 
 /// <summary>
-/// 图表页控制器（步骤04）：支出/收入两态按钮 + 周/月/年 Toggle 组 + 周期条（最近 6 期，左旧右新）+
-/// 汇总行（总额/均值）+ 自绘折线图（点节点弹当期 Top3 气泡）+ 分类排行榜。
+/// 图表页控制器（步骤04）：支出/收入两态按钮 + 周/月/年 Toggle 组 + 周期条（月档为当年 1 月..当前月，
+/// 周/年档为最近 6 期；左旧右新）+ 汇总行（总额/均值）+ 自绘折线图（点节点弹当期 Top3 气泡）+ 分类排行榜。
 /// 导出/导入按钮本步置灰（interactable=false），步骤 05/06 启用并把当前档位+周期传给弹窗。
 /// 刷新链：档位/周期/类型任一变化 → DateRangeUtil 算区间 → GetRecordsInRange →
 /// ChartCalculator → 折线/汇总/排行榜全量重建（子项 DestroyImmediate，避开 Destroy 同帧幽灵行）。
@@ -508,8 +508,11 @@ public class ChartPanelUI : MonoBehaviour
 
         DateTime today = DateTime.Now.Date;
 
-        // 左旧右新：offset -5..0，本期在最右
-        for (int i = StripPeriodCount - 1; i >= 0; i--)
+        // 月档：当年 1 月..当前月（未来月份无数据不上条，12 月时正好 1..12 全年）；
+        // 周/年档：维持最近 6 期窗口。左旧右新，本期在最右
+        int count = currentRange == ExportRange.Month ? today.Month : StripPeriodCount;
+
+        for (int i = count - 1; i >= 0; i--)
         {
             int offset = -i;
             string start;

@@ -95,7 +95,7 @@ public static class DetailPanelShot
 
             if (frame == 70)
             {
-                // 长按第一行弹确认框拍第二张
+                // 长按第一行弹操作弹窗（修改/删除）拍第二张
                 try
                 {
                     RecordItemUI firstItem = detail.ListContent.GetComponentInChildren<RecordItemUI>();
@@ -107,7 +107,7 @@ public static class DetailPanelShot
                 }
                 catch (Exception ex)
                 {
-                    Debug.LogWarning("[DetailShot] 弹确认框失败：" + ex.Message);
+                    Debug.LogWarning("[DetailShot] 弹操作弹窗失败：" + ex.Message);
                 }
             }
 

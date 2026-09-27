@@ -8,7 +8,7 @@ using TMPro;
 /// 明细页控制器（步骤03）：年月切换（‹ ›，跨年自动进位）+ 当月收/支合计 + 按日分组流水列表。
 /// 列表 = 滚动区 Content（VerticalLayoutGroup）下平铺 组头 + 记录行（不做嵌套 LayoutGroup，避开
 /// 子项 PreferredSize 晚一帧的坑；<千条直接全清全建，不做对象池）。
-/// 点击行 → RecordPanelUI.SetupForEdit；长按行 → ConfirmDialog 确认后删除。
+/// 长按行 → ConfirmDialog 双选项弹窗（修改/删除）；选修改回填进记账页，选删除再走二次确认（手感优化改版）。
 /// 数据刷新：OnEnable 回到当前月全量重建；AccountManager.OnDataChanged 广播后重建当前查看月。
 /// </summary>
 public class DetailPanelUI : MonoBehaviour
@@ -273,7 +273,6 @@ public class DetailPanelUI : MonoBehaviour
 
                 RecordItemUI item = Instantiate(recordItemPrefab, listContent);
                 item.Setup(records[i], GetIconSprite(records[i].Category));
-                item.Clicked += OnItemClicked;
                 item.LongPressed += OnItemLongPressed;
             }
 
@@ -334,28 +333,9 @@ public class DetailPanelUI : MonoBehaviour
     // ---------- 行交互 ----------
 
     /// <summary>
-    /// 点击记录行 → 编辑模式打开记账页（含日期在内全字段回填）
-    /// </summary>
-    private void OnItemClicked(AccountRecord record)
-    {
-        if (record == null)
-        {
-            return;
-        }
-
-        if (recordPanelUI != null)
-        {
-            recordPanelUI.SetupForEdit(record);
-        }
-
-        if (uiManager != null)
-        {
-            uiManager.OpenRecordPanel();
-        }
-    }
-
-    /// <summary>
-    /// 长按记录行 → 删除确认弹窗，确认后按 Id 删除（OnDataChanged 自动刷新列表）
+    /// 长按记录行 → 双选项弹窗（修改/删除）：
+    /// 修改 = 全字段回填记账页（SetupForEdit）；删除 = 再走"删除这笔记录？"二次确认后才删（不可恢复留保险）。
+    /// 弹窗文案带分类/金额/日期，方便确认操作对象。
     /// </summary>
     private void OnItemLongPressed(AccountRecord record)
     {
@@ -364,14 +344,32 @@ public class DetailPanelUI : MonoBehaviour
             return;
         }
 
-        string message = "删除这笔" + record.Category + "记录？\n删除后无法恢复。";
+        string message = record.Category + " " + MoneyText.Format(record.AmountFen, (RecordType)record.Type) +
+            "\n" + FormatGroupDate(record.Date) + "\n\n要对这笔记录做什么？";
         string recordId = record.Id;
-        confirmDialog.Show(message, () =>
-        {
-            if (accountManager != null)
+
+        confirmDialog.Show(message,
+            "修改", () =>
             {
-                accountManager.DeleteRecord(recordId);
-            }
-        });
+                if (recordPanelUI != null)
+                {
+                    recordPanelUI.SetupForEdit(record);
+                }
+
+                if (uiManager != null)
+                {
+                    uiManager.OpenRecordPanel();
+                }
+            },
+            "删除", () =>
+            {
+                confirmDialog.Show("删除这笔" + record.Category + "记录？\n删除后无法恢复。", () =>
+                {
+                    if (accountManager != null)
+                    {
+                        accountManager.DeleteRecord(recordId);
+                    }
+                });
+            });
     }
 }

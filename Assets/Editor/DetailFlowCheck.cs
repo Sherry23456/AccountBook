@@ -216,13 +216,20 @@ public static class DetailFlowCheck
         allPass &= Check("翻回本月标题复原", txtYearMonth.text == today.ToString("yyyy") + "年 " + today.ToString("MM") + "月");
         allPass &= Check("翻回后今天组头仍在", FindHeader(listContent, today.ToString("MM月dd日")) != null);
 
-        // 5) 点击行 → 编辑模式（记账页回填），取消后回明细页不落库
+        // 5) 长按行 → 双选项弹窗（修改/删除）→ 修改进编辑模式（记账页回填），取消后回明细页不落库
         todayItems = GetGroupItems(listContent, FindHeader(listContent, today.ToString("MM月dd日")));
         RecordItemUI itemA = todayItems.Find(item => item.Record != null && item.Record.Id == a.Id);
         int countBeforeEdit = accountManager.GetRecordsByMonth(currentMonthKey).Count;
-        itemA.SimulateClick();
+        itemA.SimulateLongPress();
+        allPass &= Check("长按 → 操作弹窗打开", confirmBox.gameObject.activeSelf);
+        allPass &= Check("操作弹窗左=修改 右=删除", confirmBox.CancelText == "修改" && confirmBox.ConfirmText == "删除");
+
+        SerializedObject soDialog = new SerializedObject(confirmBox);
+        Button dialogCancel = soDialog.FindProperty("cancelButton").objectReferenceValue as Button;
+        Button dialogConfirm = soDialog.FindProperty("confirmButton").objectReferenceValue as Button;
         TextMeshProUGUI amountText = new SerializedObject(panel).FindProperty("amountText").objectReferenceValue as TextMeshProUGUI;
-        allPass &= Check("点击行 → 记账页激活、明细页隐藏",
+        dialogCancel.onClick.Invoke();
+        allPass &= Check("点修改 → 记账页激活、明细页隐藏",
             panel.gameObject.activeSelf && detail.gameObject.activeSelf == false);
         allPass &= Check("编辑回填金额 28.80", amountText != null && amountText.text == "28.80");
         Button btnCancel = FindChildButton(panel.transform, "btnClose");
@@ -230,21 +237,21 @@ public static class DetailFlowCheck
         allPass &= Check("取消后回明细页且未落库",
             detail.gameObject.activeInHierarchy && accountManager.GetRecordsByMonth(currentMonthKey).Count == countBeforeEdit);
 
-        // 6) 长按删除：确认弹窗 → 取消不删 → 再长按确认删除 → 列表与组头自动刷新（OnDataChanged）
+        // 6) 长按 → 选项弹窗点删除 → 二次确认弹窗：取消不删，再走一遍确认删除 → 列表与组头自动刷新（OnDataChanged）
         todayItems = GetGroupItems(listContent, FindHeader(listContent, today.ToString("MM月dd日")));
         RecordItemUI itemB = todayItems.Find(item => item.Record != null && item.Record.Id == b.Id);
         itemB.SimulateLongPress();
-        allPass &= Check("长按 → 确认弹窗打开", confirmBox.gameObject.activeSelf);
-
-        SerializedObject soDialog = new SerializedObject(confirmBox);
-        Button dialogCancel = soDialog.FindProperty("cancelButton").objectReferenceValue as Button;
-        Button dialogConfirm = soDialog.FindProperty("confirmButton").objectReferenceValue as Button;
+        allPass &= Check("再次长按 → 操作弹窗打开", confirmBox.gameObject.activeSelf);
+        dialogConfirm.onClick.Invoke();
+        allPass &= Check("选删除 → 二次确认弹窗（取消/删除）", confirmBox.gameObject.activeSelf &&
+            confirmBox.CancelText == "取消" && confirmBox.ConfirmText == "删除");
         dialogCancel.onClick.Invoke();
-        allPass &= Check("弹窗取消 → 记录仍在", FindById(accountManager.GetRecordsByMonth(currentMonthKey), b.Id) != null);
+        allPass &= Check("确认弹窗取消 → 记录仍在", FindById(accountManager.GetRecordsByMonth(currentMonthKey), b.Id) != null);
 
         todayItems = GetGroupItems(listContent, FindHeader(listContent, today.ToString("MM月dd日")));
         itemB = todayItems.Find(item => item.Record != null && item.Record.Id == b.Id);
         itemB.SimulateLongPress();
+        dialogConfirm.onClick.Invoke();
         dialogConfirm.onClick.Invoke();
         allPass &= Check("确认删除 → 记录落库移除", FindById(accountManager.GetRecordsByMonth(currentMonthKey), b.Id) == null);
         allPass &= Check("列表自动刷新 → 该行消失",

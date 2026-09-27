@@ -66,8 +66,14 @@ public static class ExcelExportService
                 }
 
                 sheet.Cells[1, 1, 1, HeaderTexts.Length].Style.Font.Bold = true;
-                sheet.Cells.AutoFitColumns();
-                sheet.Column(5).Width = 30;   // AutoFitColumns 对中文列宽偏窄，备注列手动放宽
+
+                // 列宽只能写死：AutoFitColumns 内部走 System.Drawing 的 GDI+，
+                // Android 真机没有 libgdiplus，类型初始化直接抛异常（编辑器 Windows 上验证不出来）
+                sheet.Column(1).Width = 12;   // 日期 yyyy-MM-dd
+                sheet.Column(2).Width = 8;    // 类型 支出/收入
+                sheet.Column(3).Width = 12;   // 分类
+                sheet.Column(4).Width = 12;   // 金额(元)
+                sheet.Column(5).Width = 30;   // 备注
 
                 package.Save();
             }

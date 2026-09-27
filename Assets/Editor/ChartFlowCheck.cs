@@ -296,6 +296,9 @@ public static class ChartFlowCheck
         allPass &= Check("月折线点数=当月天数", result != null && result.Points.Count ==
             DateTime.DaysInMonth(today.Year, today.Month));
         allPass &= Check("月总额=基线+自建", result != null && txtTotal.text == MoneyText.FormatYuan(expectedMonthExpense));
+        allPass &= Check("月周期条 1月..当前月", periodContent.childCount == today.Month &&
+            periodContent.GetChild(0).GetComponent<PeriodStripButton>().LabelText == "1月" &&
+            periodContent.GetChild(today.Month - 1).GetComponent<PeriodStripButton>().LabelText == today.Month + "月");
 
         // 5) 年档位：12 点按月汇总
         toggleYear.isOn = true;
@@ -354,7 +357,7 @@ public static class ChartFlowCheck
 
         // 10) 导出已启用（步骤05 接线），导入仍置灰（步骤06 接线）
         allPass &= Check("导出按钮已启用(步骤05)", btnExport.interactable == true);
-        allPass &= Check("导入按钮置灰", btnImport.interactable == false);
+        allPass &= Check("导入按钮已启用(步骤06)", btnImport.interactable == true);
 
         // 11) 切回明细页
         uiManager.OpenDetailPanel();

@@ -280,7 +280,7 @@ public static class RecordPanelBuilder
     private static void BuildTopBar(RectTransform content, TMP_FontAsset font, PanelRefs refs)
     {
         RectTransform topBar = CreateRect(content, "TopBar", new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0.5f, 1f));
-        topBar.sizeDelta = new Vector2(0f, 240f);
+        topBar.sizeDelta = new Vector2(0f, 360f);   // 240 时真机 insets(~152) 会把页签坠出黄底（2026-09 真机错位同族）
         Image topBarImage = topBar.gameObject.AddComponent<Image>();
         topBarImage.color = ColYellow;
         topBarImage.raycastTarget = false;
@@ -292,9 +292,10 @@ public static class RecordPanelBuilder
         SafeAreaFitter topFitter = topContent.gameObject.AddComponent<SafeAreaFitter>();
         SetEnumField(topFitter, "mode", SafeAreaFitter.Mode.Top);
 
-        RectTransform tabGroup = CreateRect(topContent, "TabGroup", new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(0f, 0.5f));
+        // 页签锚 TopContent 顶边（跟随安全区下移）；中心锚在容器被压缩后会坠向栏底
+        RectTransform tabGroup = CreateRect(topContent, "TabGroup", new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 1f));
         tabGroup.sizeDelta = new Vector2(440f, 104f);
-        tabGroup.anchoredPosition = new Vector2(40f, 0f);
+        tabGroup.anchoredPosition = new Vector2(40f, -24f);
 
         refs.TabExpense = CreateTabButton(tabGroup, "Tab_Expense", "支出", font, new Vector2(0f, 0f), new Vector2(0.5f, 1f));
         refs.TabIncome = CreateTabButton(tabGroup, "Tab_Income", "收入", font, new Vector2(0.5f, 0f), new Vector2(1f, 1f));
@@ -312,7 +313,7 @@ public static class RecordPanelBuilder
         GameObject scrollView = CreateRect(content, "CategoryScrollView", Vector2.zero, Vector2.one, new Vector2(0.5f, 0.5f)).gameObject;
         RectTransform scrollRectT = scrollView.GetComponent<RectTransform>();
         scrollRectT.offsetMin = new Vector2(0f, 940f);    // AmountRow 顶边（720 + 220）
-        scrollRectT.offsetMax = new Vector2(0f, -240f);   // TopBar 底边
+        scrollRectT.offsetMax = new Vector2(0f, -360f);   // TopBar 底边
 
         RectTransform viewport = CreateRect(scrollView.transform, "Viewport", Vector2.zero, Vector2.one, new Vector2(0.5f, 0.5f));
         viewport.offsetMin = Vector2.zero;
