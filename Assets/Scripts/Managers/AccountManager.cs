@@ -127,6 +127,22 @@ public class AccountManager : MonoBehaviour
     }
 
     /// <summary>
+    /// 日期区间记录查询（含首尾 yyyy-MM-dd，转传仓储；图表页/导出导入共用）
+    /// </summary>
+    public List<AccountRecord> GetRecordsInRange(string startDate, string endDate)
+    {
+        TryInitializeDependencies();
+
+        if (accountRepository == null)
+        {
+            Debug.LogWarning("[AccountManager] AccountRepository 引用缺失.");
+            return new List<AccountRecord>();
+        }
+
+        return accountRepository.GetRecordsInRange(startDate, endDate);
+    }
+
+    /// <summary>
     /// 某月收支汇总（yyyyMM，金额单位：分）
     /// </summary>
     public void GetMonthSummary(string yyyyMM, out long incomeFen, out long expenseFen)

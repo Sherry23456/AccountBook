@@ -381,7 +381,8 @@ public static class DetailPanelBuilder
     {
         int half = columnName == "ExpenseCol" ? 0 : 1;
 
-        RectTransform column = CreateRect(summaryRow, columnName, new Vector2(half, 0f), new Vector2(half + 0.5f, 1f), new Vector2(0.5f, 0.5f));
+        // 右列锚点必须是 0.5~1（写成 1~1.5 会整体跑出屏幕外，"本月收入"列不可见，步骤04 验收时发现）
+        RectTransform column = CreateRect(summaryRow, columnName, new Vector2(0.5f * half, 0f), new Vector2(0.5f * half + 0.5f, 1f), new Vector2(0.5f, 0.5f));
         column.offsetMin = Vector2.zero;
         column.offsetMax = Vector2.zero;
 
