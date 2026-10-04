@@ -12,7 +12,7 @@ using UnityEngine;
 /// </summary>
 public static class BridgeReconnectKick
 {
-    private const string SessionKey = "AccountBook.BridgeKick.Ran";
+    private const string SessionKey = "AccountBook.BridgeKick.Ran.v2";   // v2：桥会话丢失后换键重拉（每次改键触发一次重连）
 
     [InitializeOnLoadMethod]
     private static void Kick()

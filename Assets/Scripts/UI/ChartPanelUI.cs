@@ -30,12 +30,6 @@ public class ChartPanelUI : MonoBehaviour
     [Header("Top Bar")]
     [SerializeField] private Button btnType;
     [SerializeField] private TextMeshProUGUI btnTypeLabel;
-    [SerializeField] private Button btnExport;
-    [SerializeField] private Button btnImport;
-
-    [Header("Export Popup")]
-    [SerializeField] private ExportPanelUI exportPanel;   // 步骤05 接线：点导出带入当前档位与周期
-    [SerializeField] private ImportPanelUI importPanel;   // 步骤06 接线：点导入打开导入弹窗
 
     [Header("Range Toggles")]
     [SerializeField] private Toggle toggleWeek;
@@ -158,16 +152,6 @@ public class ChartPanelUI : MonoBehaviour
         {
             iconProvider = FindFirstObjectByType<CategoryIconProvider>();
         }
-
-        if (exportPanel == null)
-        {
-            exportPanel = FindFirstObjectByType<ExportPanelUI>(FindObjectsInactive.Include);
-        }
-
-        if (importPanel == null)
-        {
-            importPanel = FindFirstObjectByType<ImportPanelUI>(FindObjectsInactive.Include);
-        }
     }
 
     /// <summary>
@@ -176,8 +160,6 @@ public class ChartPanelUI : MonoBehaviour
     private void RegisterEvents()
     {
         RegisterButton(btnType, OnTypeClicked);
-        RegisterButton(btnExport, OnExportClicked);
-        RegisterButton(btnImport, OnImportClicked);
 
         RegisterToggle(toggleWeek, ExportRange.Week);
         RegisterToggle(toggleMonth, ExportRange.Month);
@@ -198,6 +180,7 @@ public class ChartPanelUI : MonoBehaviour
         }
 
         button.onClick.RemoveAllListeners();
+        button.onClick.AddListener(SfxManager.PlayClick);
         button.onClick.AddListener(action);
     }
 
@@ -227,44 +210,6 @@ public class ChartPanelUI : MonoBehaviour
     {
         currentType = currentType == RecordType.Expense ? RecordType.Income : RecordType.Expense;
         RefreshAll();
-    }
-
-    /// <summary>
-    /// 导出数据入口（步骤05）：把当前档位与周期传给导出弹窗并打开
-    /// </summary>
-    private void OnExportClicked()
-    {
-        if (exportPanel == null)
-        {
-            exportPanel = FindFirstObjectByType<ExportPanelUI>(FindObjectsInactive.Include);
-        }
-
-        if (exportPanel == null)
-        {
-            Debug.LogWarning("[ChartPanelUI] 场景中没有 ExportPanelUI，请先跑 AccountBook/10-搭建导出弹窗");
-            return;
-        }
-
-        exportPanel.Open(currentRange, lastStartDate, lastEndDate);
-    }
-
-    /// <summary>
-    /// 导入数据入口（步骤06）：打开导入弹窗（弹窗自行回到未选文件状态）
-    /// </summary>
-    private void OnImportClicked()
-    {
-        if (importPanel == null)
-        {
-            importPanel = FindFirstObjectByType<ImportPanelUI>(FindObjectsInactive.Include);
-        }
-
-        if (importPanel == null)
-        {
-            Debug.LogWarning("[ChartPanelUI] 场景中没有 ImportPanelUI，请先跑 AccountBook/12-搭建导入弹窗");
-            return;
-        }
-
-        importPanel.Open();
     }
 
     /// <summary>
@@ -527,6 +472,7 @@ public class ChartPanelUI : MonoBehaviour
 
             if (clickable != null)
             {
+                clickable.onClick.AddListener(SfxManager.PlayClick);
                 clickable.onClick.AddListener(() => SelectPeriod(capturedOffset));
             }
 

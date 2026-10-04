@@ -167,20 +167,7 @@ public static class ExportPanelBuilder
         soUi.FindProperty("exportPanel").objectReferenceValue = refs.Panel;
         soUi.ApplyModifiedPropertiesWithoutUndo();
 
-        // —— 图表页导出按钮启用 + 弹窗引用回填 ——
-        if (chartPanelUi != null)
-        {
-            SerializedObject soChart = new SerializedObject(chartPanelUi);
-            SetRef(soChart, "exportPanel", panelUi);
-            soChart.ApplyModifiedPropertiesWithoutUndo();
-
-            SerializedProperty btnExportProp = soChart.FindProperty("btnExport");
-
-            if (btnExportProp != null && btnExportProp.objectReferenceValue != null)
-            {
-                ((Button)btnExportProp.objectReferenceValue).interactable = true;   // 步骤05 启用，步骤06 的 btnImport 保持置灰
-            }
-        }
+        // —— 图表页入口已迁至设置页（08c）：不再接线 ChartPanelUI.exportPanel/btnExport ——
 
         // —— ToastUI（Canvas 下最顶层，常驻隐藏） ——
         BuildToast(canvas, font);
@@ -436,12 +423,8 @@ public static class ExportPanelBuilder
         {
             SerializedObject soChart = new SerializedObject(chartPanelUi);
             SerializedProperty exportPanelProp = soChart.FindProperty("exportPanel");
-            SerializedProperty btnExportProp = soChart.FindProperty("btnExport");
-            allPass &= Check("ChartPanelUI.exportPanel 指向导出弹窗",
-                exportPanelProp != null && exportPanelProp.objectReferenceValue == panelUi);
-            allPass &= Check("图表页导出按钮已启用",
-                btnExportProp != null && btnExportProp.objectReferenceValue != null &&
-                ((Button)btnExportProp.objectReferenceValue).interactable);
+            allPass &= Check("图表页已不持有导出弹窗引用（08c 迁至设置页）",
+                exportPanelProp == null || exportPanelProp.objectReferenceValue == null);
         }
         else
         {

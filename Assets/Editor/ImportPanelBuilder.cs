@@ -145,19 +145,7 @@ public static class ImportPanelBuilder
         // —— 图表页导入按钮启用 + 弹窗引用回填 ——
         ChartPanelUI chartPanelUi = UnityEngine.Object.FindFirstObjectByType<ChartPanelUI>(FindObjectsInactive.Include);
 
-        if (chartPanelUi != null)
-        {
-            SerializedObject soChart = new SerializedObject(chartPanelUi);
-            SetRef(soChart, "importPanel", panelUi);
-            soChart.ApplyModifiedPropertiesWithoutUndo();
-
-            SerializedProperty btnImportProp = soChart.FindProperty("btnImport");
-
-            if (btnImportProp != null && btnImportProp.objectReferenceValue != null)
-            {
-                ((Button)btnImportProp.objectReferenceValue).interactable = true;   // 步骤06 启用
-            }
-        }
+        // —— 图表页入口已迁至设置页（08c）：不再接线 ChartPanelUI.importPanel/btnImport ——
 
         // —— ToastUI 为步骤05 产物，仅校验存在 ——
         ToastUI toastUi = UnityEngine.Object.FindFirstObjectByType<ToastUI>(FindObjectsInactive.Include);
@@ -312,12 +300,8 @@ public static class ImportPanelBuilder
         {
             SerializedObject soChart = new SerializedObject(chartPanelUi);
             SerializedProperty importPanelProp = soChart.FindProperty("importPanel");
-            SerializedProperty btnImportProp = soChart.FindProperty("btnImport");
-            allPass &= Check("ChartPanelUI.importPanel 指向导入弹窗",
-                importPanelProp != null && importPanelProp.objectReferenceValue == panelUi);
-            allPass &= Check("图表页导入按钮已启用",
-                btnImportProp != null && btnImportProp.objectReferenceValue != null &&
-                ((Button)btnImportProp.objectReferenceValue).interactable);
+            allPass &= Check("图表页已不持有导入弹窗引用（08c 迁至设置页）",
+                importPanelProp == null || importPanelProp.objectReferenceValue == null);
         }
         else
         {

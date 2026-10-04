@@ -122,6 +122,7 @@ public class ExportPanelUI : MonoBehaviour
         }
 
         button.onClick.RemoveAllListeners();
+        button.onClick.AddListener(SfxManager.PlayClick);
         button.onClick.AddListener(action);
     }
 
@@ -137,6 +138,7 @@ public class ExportPanelUI : MonoBehaviour
         {
             if (isOn)
             {
+                SfxManager.PlayClick();
                 SetRange(range);
             }
         });

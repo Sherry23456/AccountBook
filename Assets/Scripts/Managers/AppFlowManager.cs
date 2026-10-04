@@ -14,6 +14,8 @@ public class AppFlowManager : MonoBehaviour
     [SerializeField] private Button btnDetail;
     [SerializeField] private Button btnRecord;
     [SerializeField] private Button btnChart;
+    [SerializeField] private Button btnDiscover;
+    [SerializeField] private Button btnSettings;
 
     private void Awake()
     {
@@ -45,6 +47,8 @@ public class AppFlowManager : MonoBehaviour
         RegisterButton(btnDetail, OnClickDetail);
         RegisterButton(btnRecord, OnClickRecord);
         RegisterButton(btnChart, OnClickChart);
+        RegisterButton(btnDiscover, OnClickDiscover);
+        RegisterButton(btnSettings, OnClickSettings);
     }
 
     /// <summary>
@@ -58,6 +62,7 @@ public class AppFlowManager : MonoBehaviour
         }
 
         button.onClick.RemoveAllListeners();
+        button.onClick.AddListener(SfxManager.PlayClick);
         button.onClick.AddListener(action);
     }
 
@@ -96,6 +101,28 @@ public class AppFlowManager : MonoBehaviour
         if (uiManager != null)
         {
             uiManager.OpenChartPanel();
+        }
+    }
+
+    /// <summary>
+    /// 发现 按钮（占位空白页，后续开发）
+    /// </summary>
+    private void OnClickDiscover()
+    {
+        if (uiManager != null)
+        {
+            uiManager.OpenDiscoverPanel();
+        }
+    }
+
+    /// <summary>
+    /// 设置 按钮
+    /// </summary>
+    private void OnClickSettings()
+    {
+        if (uiManager != null)
+        {
+            uiManager.OpenSettingsPanel();
         }
     }
 }

@@ -3,6 +3,10 @@
   "WorkspaceRootPath": "D:\\Qklunity\\AccountBook\\",
   "Documents": [
     {
+      "AbsoluteMoniker": "D:0:0:{69366761-0A83-B9F3-3CC9-BE737B00F42B}|Assembly-CSharp.csproj|d:\\qklunity\\accountbook\\assets\\scripts\\data\\accountrecord.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{69366761-0A83-B9F3-3CC9-BE737B00F42B}|Assembly-CSharp.csproj|solutionrelative:assets\\scripts\\data\\accountrecord.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
       "AbsoluteMoniker": "D:0:0:{69366761-0A83-B9F3-3CC9-BE737B00F42B}|Assembly-CSharp.csproj|d:\\qklunity\\accountbook\\assets\\link.xml||{FA3CD31E-987B-443A-9B81-186104E8DAC1}",
       "RelativeMoniker": "D:0:0:{69366761-0A83-B9F3-3CC9-BE737B00F42B}|Assembly-CSharp.csproj|solutionrelative:assets\\link.xml||{FA3CD31E-987B-443A-9B81-186104E8DAC1}"
     },
@@ -23,6 +27,19 @@
             {
               "$type": "Document",
               "DocumentIndex": 0,
+              "Title": "AccountRecord.cs",
+              "DocumentMoniker": "D:\\Qklunity\\AccountBook\\Assets\\Scripts\\Data\\AccountRecord.cs",
+              "RelativeDocumentMoniker": "Assets\\Scripts\\Data\\AccountRecord.cs",
+              "ToolTip": "D:\\Qklunity\\AccountBook\\Assets\\Scripts\\Data\\AccountRecord.cs",
+              "RelativeToolTip": "Assets\\Scripts\\Data\\AccountRecord.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-10-03T13:55:58.528Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
               "Title": "link.xml",
               "DocumentMoniker": "D:\\Qklunity\\AccountBook\\Assets\\link.xml",
               "RelativeDocumentMoniker": "Assets\\link.xml",
@@ -35,7 +52,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 1,
+              "DocumentIndex": 2,
               "Title": "7000\u5E38\u7528\u5B57\u4F18\u5316\u7248.txt",
               "DocumentMoniker": "D:\\Qklunity\\AccountBook\\Assets\\Fonts\\7000\u5E38\u7528\u5B57\u4F18\u5316\u7248.txt",
               "RelativeDocumentMoniker": "Assets\\Fonts\\7000\u5E38\u7528\u5B57\u4F18\u5316\u7248.txt",

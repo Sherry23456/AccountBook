@@ -46,8 +46,6 @@ public static class ChartPanelBuilder
         public GameObject Panel;
         public Button BtnType;
         public TextMeshProUGUI BtnTypeLabel;
-        public Button BtnExport;
-        public Button BtnImport;
         public Toggle ToggleWeek;
         public Toggle ToggleMonth;
         public Toggle ToggleYear;
@@ -294,8 +292,6 @@ public static class ChartPanelBuilder
         SetRef(so, "labelFont", font);
         SetRef(so, "btnType", refs.BtnType);
         SetRef(so, "btnTypeLabel", refs.BtnTypeLabel);
-        SetRef(so, "btnExport", refs.BtnExport);
-        SetRef(so, "btnImport", refs.BtnImport);
         SetRef(so, "toggleWeek", refs.ToggleWeek);
         SetRef(so, "toggleMonth", refs.ToggleMonth);
         SetRef(so, "toggleYear", refs.ToggleYear);
@@ -423,7 +419,7 @@ public static class ChartPanelBuilder
         SafeAreaFitter topFitter = topContent.gameObject.AddComponent<SafeAreaFitter>();
         SetEnumField(topFitter, "mode", SafeAreaFitter.Mode.Top);
 
-        // 第一行：左 支出/收入 两态按钮，右 导出/导入（置灰，步骤 05/06 接线）
+        // 第一行：左 支出/收入 两态按钮（原右侧导出/导入入口已迁至设置页，见 15 号）
         RectTransform row1 = CreateRect(topContent, "Row1", new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0.5f, 1f));
         row1.sizeDelta = new Vector2(0f, 110f);
         row1.anchoredPosition = new Vector2(0f, -8f);
@@ -432,15 +428,6 @@ public static class ChartPanelBuilder
             new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(0f, 0.5f),
             new Vector2(240f, 84f), new Vector2(30f, 0f), 36f, ColBlack, ColWhite);
         refs.BtnTypeLabel = refs.BtnType.GetComponentInChildren<TextMeshProUGUI>();
-
-        refs.BtnImport = CreateColorButton(row1, "btnImport", "导入数据", font,
-            new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(1f, 0.5f),
-            new Vector2(210f, 72f), new Vector2(-30f, 0f), 30f, ColKey, ColGray);
-        refs.BtnExport = CreateColorButton(row1, "btnExport", "导出数据", font,
-            new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(1f, 0.5f),
-            new Vector2(210f, 72f), new Vector2(-260f, 0f), 30f, ColKey, ColGray);
-        refs.BtnExport.interactable = false;   // 步骤 05 接线
-        refs.BtnImport.interactable = false;   // 步骤 06 接线
 
         // 第二行：周/月/年 Toggle 组（选中块变黑，同录屏）
         RectTransform row2 = CreateRect(topContent, "Row2", new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0.5f, 0f));
@@ -991,7 +978,7 @@ public static class ChartPanelBuilder
         string[] fields =
         {
             "accountManager", "iconProvider", "labelFont",
-            "btnType", "btnTypeLabel", "btnExport", "btnImport",
+            "btnType", "btnTypeLabel",
             "toggleWeek", "toggleMonth", "toggleYear",
             "toggleWeekLabel", "toggleMonthLabel", "toggleYearLabel",
             "toggleWeekSelectedBg", "toggleMonthSelectedBg", "toggleYearSelectedBg",
@@ -1007,8 +994,7 @@ public static class ChartPanelBuilder
         }
 
         allPass &= Check("图表预制体非空", refs.RankItemPrefab != null && refs.PeriodButtonPrefab != null);
-        allPass &= Check("导入导出按钮已置灰", refs.BtnExport != null && refs.BtnImport != null &&
-            refs.BtnExport.interactable == false && refs.BtnImport.interactable == false);
+        allPass &= Check("支出/收入两态按钮已接线", refs.BtnType != null && refs.BtnTypeLabel != null);
         allPass &= Check("默认选中周档位", refs.ToggleWeek != null && refs.ToggleWeek.isOn &&
             refs.ToggleMonth != null && refs.ToggleMonth.isOn == false &&
             refs.ToggleYear != null && refs.ToggleYear.isOn == false);

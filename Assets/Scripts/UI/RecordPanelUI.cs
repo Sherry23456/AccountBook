@@ -156,6 +156,7 @@ public class RecordPanelUI : MonoBehaviour
         }
 
         button.onClick.RemoveAllListeners();
+        button.onClick.AddListener(SfxManager.PlayClick);
         button.onClick.AddListener(action);
     }
 
@@ -680,12 +681,14 @@ public class RecordPanelUI : MonoBehaviour
 
         if (totalFen <= 0)
         {
+            ToastUI.Show("请输入金额");
             Debug.LogWarning("[RecordPanelUI] 总计金额无效，不保存。");
             return;
         }
 
         if (string.IsNullOrEmpty(selectedCategory))
         {
+            ToastUI.Show("请选择分类");
             Debug.LogWarning("[RecordPanelUI] 未选中分类，不保存。");
             return;
         }
@@ -710,11 +713,13 @@ public class RecordPanelUI : MonoBehaviour
 
         if (success == false)
         {
+            ToastUI.Show("保存失败，请重试");
             Debug.LogWarning("[RecordPanelUI] 保存失败（AccountManager 拒绝），面板保持打开。");
             return;
         }
 
         Debug.Log($"[RecordPanelUI] 已保存：{(RecordType)record.Type} {record.Category} {FormatFen(record.AmountFen)} 元（{(editingRecord != null ? "编辑" : "新增")}）。");
+        SfxManager.PlaySuccess();
         ResetAndClose();
     }
 

@@ -206,11 +206,7 @@ public static class ExportFlowCheck
             new SerializedObject(exportPanel).FindProperty("excelTransferManager").objectReferenceValue == transfer);
         allPass &= Check("引用链：UIManager.exportPanel 指向弹窗",
             new SerializedObject(uiManager).FindProperty("exportPanel").objectReferenceValue == exportPanel.gameObject);
-        allPass &= Check("引用链：ChartPanelUI.exportPanel 已接线",
-            new SerializedObject(chart).FindProperty("exportPanel").objectReferenceValue == exportPanel);
-
-        Button chartExportBtn = new SerializedObject(chart).FindProperty("btnExport").objectReferenceValue as Button;
-        allPass &= Check("引用链：图表页导出按钮已启用", chartExportBtn != null && chartExportBtn.interactable);
+        // 图表页旧入口已迁至设置页（08c），图表页不再持有导出弹窗引用与按钮
 
         SerializedObject soPanel = new SerializedObject(exportPanel);
         bool panelRefsOk = true;
@@ -254,11 +250,11 @@ public static class ExportFlowCheck
         AccountRecord prevWeekRecord = MakeSelfCheckRecord((int)RecordType.Expense, "日用", 520, pws);
         allPass &= Check("自建：今天+上周一 两笔入库", accountManager.AddRecord(todayRecord) && accountManager.AddRecord(prevWeekRecord));
 
-        // 1) 图表页点导出 → 弹窗打开并带入当前档位（周）与周期
+        // 1) 设置页点导出 → 弹窗打开（08c 迁移后入口走 UIManager），默认周档
         uiManager.OpenChartPanel();
-        chartExportBtn.onClick.Invoke();
+        uiManager.OpenExportPanel();
 
-        allPass &= Check("流程：图表页点导出 → 弹窗打开", exportPanel.gameObject.activeSelf);
+        allPass &= Check("流程：设置页点导出 → 弹窗打开", exportPanel.gameObject.activeSelf);
 
         Toggle toggleWeek = soPanel.FindProperty("toggleWeek").objectReferenceValue as Toggle;
         Toggle toggleMonth = soPanel.FindProperty("toggleMonth").objectReferenceValue as Toggle;
@@ -268,7 +264,7 @@ public static class ExportFlowCheck
         Button btnExport = soPanel.FindProperty("btnExport").objectReferenceValue as Button;
         Button btnPrev = soPanel.FindProperty("btnPrev").objectReferenceValue as Button;
 
-        allPass &= Check("流程：档位继承周且互斥", toggleWeek.isOn && toggleMonth.isOn == false && toggleYear.isOn == false);
+        allPass &= Check("流程：默认周档且互斥", toggleWeek.isOn && toggleMonth.isOn == false && toggleYear.isOn == false);
         allPass &= Check("流程：周期标题=本周 yyyy-MM-dd ~ MM-dd", txtPeriod.text == ws + " ~ " + we.Substring(5));
         allPass &= Check("流程：预览笔数=基线+1", txtPreview.text.Contains($"本周期 {baseWeek.Count + 1} 笔"));
         allPass &= Check("流程：预览支出合计含自建 10.30", txtPreview.text.Contains(MoneyText.FormatYuan(baseWeekExpense + 1030)));

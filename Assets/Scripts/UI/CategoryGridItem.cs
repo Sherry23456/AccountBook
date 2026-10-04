@@ -48,6 +48,7 @@ public class CategoryGridItem : MonoBehaviour
         if (clickButton != null)
         {
             clickButton.onClick.RemoveAllListeners();
+            clickButton.onClick.AddListener(SfxManager.PlayClick);
             clickButton.onClick.AddListener(HandleClick);
         }
     }

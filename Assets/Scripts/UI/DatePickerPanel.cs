@@ -126,6 +126,7 @@ public class DatePickerPanel : MonoBehaviour
         }
 
         button.onClick.RemoveAllListeners();
+        button.onClick.AddListener(SfxManager.PlayClick);
         button.onClick.AddListener(action);
     }
 

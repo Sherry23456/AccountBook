@@ -271,11 +271,7 @@ public static class ImportFlowCheck
         allPass &= Check("引用链：弹窗 7 项序列化引用完整", panelRefsOk);
         allPass &= Check("引用链：UIManager.importPanel 指向弹窗",
             new SerializedObject(uiManager).FindProperty("importPanel").objectReferenceValue == importPanel.gameObject);
-        allPass &= Check("引用链：ChartPanelUI.importPanel 已接线",
-            new SerializedObject(chart).FindProperty("importPanel").objectReferenceValue == importPanel);
-
-        Button chartImportBtn = new SerializedObject(chart).FindProperty("btnImport").objectReferenceValue as Button;
-        allPass &= Check("引用链：图表页导入按钮已启用", chartImportBtn != null && chartImportBtn.interactable);
+        // 图表页旧入口已迁至设置页（08c），图表页不再持有导入弹窗引用与按钮
 
         TextMeshProUGUI toastLabel = new SerializedObject(toast).FindProperty("label").objectReferenceValue as TextMeshProUGUI;
         allPass &= Check("引用链：Toast label 已接线", toastLabel != null);
@@ -302,10 +298,10 @@ public static class ImportFlowCheck
         TextMeshProUGUI txtStats = soPanel.FindProperty("txtStats").objectReferenceValue as TextMeshProUGUI;
         TextMeshProUGUI txtErrors = soPanel.FindProperty("txtErrors").objectReferenceValue as TextMeshProUGUI;
 
-        // 1) 图表页点导入 → 弹窗打开且为初始态
+        // 1) 设置页点导入 → 弹窗打开且为初始态（08c 迁移后入口走 UIManager）
         uiManager.OpenChartPanel();
-        chartImportBtn.onClick.Invoke();
-        allPass &= Check("流程：图表页点导入 → 弹窗打开", importPanel.gameObject.activeSelf);
+        uiManager.OpenImportPanel();
+        allPass &= Check("流程：设置页点导入 → 弹窗打开", importPanel.gameObject.activeSelf);
         allPass &= Check("流程：初始态未选文件", txtFileName.text == "未选择文件" && btnConfirm.interactable == false);
 
         // 2) 选文件自动预解析：混合文件 → 可导入 1 / 跳过 1 / 错误 2

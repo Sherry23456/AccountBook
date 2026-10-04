@@ -164,8 +164,6 @@ public static class ChartFlowCheck
         TextMeshProUGUI toggleMonthLabel = soChart.FindProperty("toggleMonthLabel").objectReferenceValue as TextMeshProUGUI;
         TextMeshProUGUI btnTypeLabel = soChart.FindProperty("btnTypeLabel").objectReferenceValue as TextMeshProUGUI;
         Button btnType = soChart.FindProperty("btnType").objectReferenceValue as Button;
-        Button btnExport = soChart.FindProperty("btnExport").objectReferenceValue as Button;
-        Button btnImport = soChart.FindProperty("btnImport").objectReferenceValue as Button;
         TextMeshProUGUI txtTotal = soChart.FindProperty("txtTotal").objectReferenceValue as TextMeshProUGUI;
         TextMeshProUGUI txtAvg = soChart.FindProperty("txtAvg").objectReferenceValue as TextMeshProUGUI;
         TextMeshProUGUI txtMax = soChart.FindProperty("txtMax").objectReferenceValue as TextMeshProUGUI;
@@ -178,7 +176,7 @@ public static class ChartFlowCheck
         TextMeshProUGUI nodeBubbleText = soChart.FindProperty("nodeBubbleText").objectReferenceValue as TextMeshProUGUI;
 
         if (toggleWeek == null || toggleMonth == null || toggleYear == null || btnTypeLabel == null ||
-            btnType == null || btnExport == null || btnImport == null || txtTotal == null || txtAvg == null ||
+            btnType == null || txtTotal == null || txtAvg == null ||
             txtMax == null || rankTitle == null || lineChart == null || periodContent == null ||
             rankContent == null || emptyChartLabel == null || nodeBubble == null || nodeBubbleText == null)
         {
@@ -189,8 +187,6 @@ public static class ChartFlowCheck
             AppendIfNull(missing, "toggleYear", toggleYear);
             AppendIfNull(missing, "btnTypeLabel", btnTypeLabel);
             AppendIfNull(missing, "btnType", btnType);
-            AppendIfNull(missing, "btnExport", btnExport);
-            AppendIfNull(missing, "btnImport", btnImport);
             AppendIfNull(missing, "txtTotal", txtTotal);
             AppendIfNull(missing, "txtAvg", txtAvg);
             AppendIfNull(missing, "txtMax", txtMax);
@@ -205,7 +201,7 @@ public static class ChartFlowCheck
             int panelCount = UnityEngine.Object.FindObjectsByType<ChartPanelUI>(
                 FindObjectsInactive.Include, FindObjectsSortMode.None).Length;
 
-            missing.Append(" | chart=").Append(chart != null ? chart.GetInstanceID().ToString() : "null")
+            missing.Append(" | chart=").Append(chart != null ? chart.GetEntityId().ToString() : "null")
                 .Append(" panelCount=").Append(panelCount)
                 .Append(" active=").Append(chart != null && chart.gameObject.activeInHierarchy);
 
@@ -355,11 +351,7 @@ public static class ChartFlowCheck
         allPass &= Check("收入排行榜内容一致", chart.LastResult != null &&
             RanksMatch(chart.LastResult.Ranks, expectedIncomeRanks) && RankItemsMatch(rankContent, expectedIncomeRanks));
 
-        // 10) 导出已启用（步骤05 接线），导入仍置灰（步骤06 接线）
-        allPass &= Check("导出按钮已启用(步骤05)", btnExport.interactable == true);
-        allPass &= Check("导入按钮已启用(步骤06)", btnImport.interactable == true);
-
-        // 11) 切回明细页
+        // 10) 切回明细页
         uiManager.OpenDetailPanel();
         allPass &= Check("切回明细页图表页隐藏", detail.gameObject.activeInHierarchy && chart.gameObject.activeInHierarchy == false);
 
