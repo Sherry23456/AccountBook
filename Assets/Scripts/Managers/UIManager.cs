@@ -6,13 +6,40 @@ public class UIManager : MonoBehaviour
     [SerializeField] private GameObject detailPanel;
     [SerializeField] private GameObject chartPanel;
     [SerializeField] private GameObject recordPanel;
+    [SerializeField] private GameObject discoverPanel;
+    [SerializeField] private GameObject settingsPanel;
+    [SerializeField] private GameObject billPanel;      // 步骤09 发现→账单子页
+    [SerializeField] private GameObject budgetPanel;    // 步骤09 发现→预算子页
 
     [Header("Popup Panels")]
     [SerializeField] private GameObject exportPanel;
     [SerializeField] private GameObject importPanel;
+    [SerializeField] private GameObject budgetDialog;   // 步骤09 预算设置底部弹窗
+
+    private void Awake()
+    {
+        // 场景可能带着上次自检/测试的页面显隐状态落盘（弹窗开着、停在图表页等）：
+        // 启动一律回明细页、弹窗全关，运行时兜底与 15 号 Builder 落盘复位互为双保险
+        SetOnlyPanelActive(detailPanel);
+
+        if (exportPanel != null)
+        {
+            exportPanel.SetActive(false);
+        }
+
+        if (importPanel != null)
+        {
+            importPanel.SetActive(false);
+        }
+
+        if (budgetDialog != null)
+        {
+            budgetDialog.SetActive(false);
+        }
+    }
 
     /// <summary>
-    /// 仅激活指定主面板（Detail/Chart/Record 三选一）
+    /// 仅激活指定主面板（Detail/Chart/Record/Discover/Settings/Bill/Budget 之一）
     /// </summary>
     public void SetOnlyPanelActive(GameObject targetPanel)
     {
@@ -29,6 +56,26 @@ public class UIManager : MonoBehaviour
         if (recordPanel != null)
         {
             recordPanel.SetActive(targetPanel == recordPanel);
+        }
+
+        if (discoverPanel != null)
+        {
+            discoverPanel.SetActive(targetPanel == discoverPanel);
+        }
+
+        if (settingsPanel != null)
+        {
+            settingsPanel.SetActive(targetPanel == settingsPanel);
+        }
+
+        if (billPanel != null)
+        {
+            billPanel.SetActive(targetPanel == billPanel);
+        }
+
+        if (budgetPanel != null)
+        {
+            budgetPanel.SetActive(targetPanel == budgetPanel);
         }
     }
 
@@ -54,6 +101,38 @@ public class UIManager : MonoBehaviour
     public void OpenRecordPanel()
     {
         SetOnlyPanelActive(recordPanel);
+    }
+
+    /// <summary>
+    /// 打开发现界面
+    /// </summary>
+    public void OpenDiscoverPanel()
+    {
+        SetOnlyPanelActive(discoverPanel);
+    }
+
+    /// <summary>
+    /// 打开账单子页（发现→账单）
+    /// </summary>
+    public void OpenBillPanel()
+    {
+        SetOnlyPanelActive(billPanel);
+    }
+
+    /// <summary>
+    /// 打开预算子页（发现→预算）
+    /// </summary>
+    public void OpenBudgetPanel()
+    {
+        SetOnlyPanelActive(budgetPanel);
+    }
+
+    /// <summary>
+    /// 打开设置界面
+    /// </summary>
+    public void OpenSettingsPanel()
+    {
+        SetOnlyPanelActive(settingsPanel);
     }
 
     /// <summary>
@@ -97,6 +176,28 @@ public class UIManager : MonoBehaviour
         if (importPanel != null)
         {
             importPanel.SetActive(false);
+        }
+    }
+
+    /// <summary>
+    /// 打开预算设置弹窗（叠加展示，不影响底下面板；内容态由 BudgetDialogUI.ShowXxx 指定）
+    /// </summary>
+    public void OpenBudgetDialog()
+    {
+        if (budgetDialog != null)
+        {
+            budgetDialog.SetActive(true);
+        }
+    }
+
+    /// <summary>
+    /// 关闭预算设置弹窗
+    /// </summary>
+    public void CloseBudgetDialog()
+    {
+        if (budgetDialog != null)
+        {
+            budgetDialog.SetActive(false);
         }
     }
 }

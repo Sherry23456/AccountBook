@@ -41,6 +41,8 @@ public class DetailPanelUI : MonoBehaviour
 
     private int viewYear;    // 当前查看年份
     private int viewMonth;   // 当前查看月份（1~12）
+    private int pendingYear = -1;    // 跨页跳月暂存（账单页月行点击 → OpenMonth → 下次 OnEnable 生效）
+    private int pendingMonth = -1;
 
     /// <summary>
     /// 列表容器（自检/截图定位用）
@@ -123,6 +125,7 @@ public class DetailPanelUI : MonoBehaviour
         }
 
         button.onClick.RemoveAllListeners();
+        button.onClick.AddListener(SfxManager.PlayClick);
         button.onClick.AddListener(action);
     }
 
@@ -155,10 +158,33 @@ public class DetailPanelUI : MonoBehaviour
     }
 
     /// <summary>
+    /// 请求下次打开明细页时定位到指定月份（账单页月行点击用；须在 SetActive(true) 之前调用，
+    /// OnEnable → ResetToCurrentMonth 消费后即清空，不影响后续手动 ‹ › 切月）
+    /// </summary>
+    public void OpenMonth(int year, int month)
+    {
+        if (year > 0 && month >= 1 && month <= 12)
+        {
+            pendingYear = year;
+            pendingMonth = month;
+        }
+    }
+
+    /// <summary>
     /// 回到当前月（面板每次打开都回到今天所在月份，保存/删除后看到最新数据）
     /// </summary>
     private void ResetToCurrentMonth()
     {
+        if (pendingYear > 0 && pendingMonth >= 1 && pendingMonth <= 12)
+        {
+            viewYear = pendingYear;
+            viewMonth = pendingMonth;
+            pendingYear = -1;
+            pendingMonth = -1;
+            RefreshAll();
+            return;
+        }
+
         DateTime now = DateTime.Now;
         viewYear = now.Year;
         viewMonth = now.Month;
