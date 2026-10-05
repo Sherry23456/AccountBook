@@ -16,8 +16,16 @@ public class UIManager : MonoBehaviour
     [SerializeField] private GameObject importPanel;
     [SerializeField] private GameObject budgetDialog;   // 步骤09 预算设置底部弹窗
 
+    [Header("Bottom Nav")]
+    [SerializeField] private BottomNavUI bottomNav;     // 步骤10 底栏图标 Normal/Selected 刷新
+
     private void Awake()
     {
+        if (bottomNav == null)
+        {
+            bottomNav = FindFirstObjectByType<BottomNavUI>(FindObjectsInactive.Include);
+        }
+
         // 场景可能带着上次自检/测试的页面显隐状态落盘（弹窗开着、停在图表页等）：
         // 启动一律回明细页、弹窗全关，运行时兜底与 15 号 Builder 落盘复位互为双保险
         SetOnlyPanelActive(detailPanel);
@@ -77,6 +85,44 @@ public class UIManager : MonoBehaviour
         {
             budgetPanel.SetActive(targetPanel == budgetPanel);
         }
+
+        RefreshBottomNav(targetPanel);
+    }
+
+    /// <summary>
+    /// 底栏图标态随当前主面板刷新（发现子页账单/预算归发现高亮；记账页四页签全灰）
+    /// </summary>
+    private void RefreshBottomNav(GameObject targetPanel)
+    {
+        if (bottomNav == null)
+        {
+            return;
+        }
+
+        BottomNavUI.NavTab tab;
+
+        if (targetPanel == chartPanel)
+        {
+            tab = BottomNavUI.NavTab.Chart;
+        }
+        else if (targetPanel == recordPanel)
+        {
+            tab = BottomNavUI.NavTab.Record;
+        }
+        else if (targetPanel == discoverPanel || targetPanel == billPanel || targetPanel == budgetPanel)
+        {
+            tab = BottomNavUI.NavTab.Discover;
+        }
+        else if (targetPanel == settingsPanel)
+        {
+            tab = BottomNavUI.NavTab.Settings;
+        }
+        else
+        {
+            tab = BottomNavUI.NavTab.Detail;
+        }
+
+        bottomNav.SetTab(tab);
     }
 
     /// <summary>

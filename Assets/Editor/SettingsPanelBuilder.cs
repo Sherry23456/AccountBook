@@ -19,6 +19,16 @@ public static class SettingsPanelBuilder
     private const string MenuItemPath = "AccountBook/15-搭建设置与发现页";
     private const string CircleSpritePath = "Assets/Art/Generated/circle.png";
     private const string FontAssetPath = "Assets/Fonts/STKAITI Dynamic SDF.asset";
+    private const string NavIconDir = "Assets/Art/icon";
+
+    /// <summary>底栏四页签图标（明细=三角 发现=X 图表=圆 设置=方），Normal 灰描边 / Selected 黑填充</summary>
+    private static readonly string[] NavIconNames =
+    {
+        "nav_detail_normal", "nav_detail_selected",
+        "nav_discover_normal", "nav_discover_selected",
+        "nav_chart_normal", "nav_chart_selected",
+        "nav_settings_normal", "nav_settings_selected",
+    };
 
     private static readonly Color ColYellow = FromHex(0xFFD100);
     private static readonly Color ColBlack = FromHex(0x222222);
@@ -32,6 +42,7 @@ public static class SettingsPanelBuilder
     private const float RowHeight = 130f;
     private const float RowMargin = 48f;
     private const float RecordCircleSize = 140f;
+    private const float NavIconSize = 96f;
 
     [MenuItem(MenuItemPath)]
     private static void BuildFromMenu()
@@ -55,6 +66,8 @@ public static class SettingsPanelBuilder
             Debug.LogError("[SettingsBuild] FAIL - 场景中没有 Canvas，请先跑 AccountBook/01-搭建主场景 Main。");
             return;
         }
+
+        EnsureNavIconImport();
 
         TMP_FontAsset font = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(FontAssetPath);
         Sprite circleSprite = AssetDatabase.LoadAssetAtPath<Sprite>(CircleSpritePath);
@@ -84,9 +97,9 @@ public static class SettingsPanelBuilder
             DestroyChild(chartRow1, "btnImport");
         }
 
-        // —— 1) 五栏底栏 ——
+        // —— 1) 五栏底栏（四页签 Normal/Selected 图标） ——
         BuildBottomNav(canvasTf, font, circleSprite, out Button btnDetail, out Button btnRecord,
-            out Button btnChart, out Button btnDiscover, out Button btnSettings);
+            out Button btnChart, out Button btnDiscover, out Button btnSettings, out BottomNavUI bottomNav);
 
         SerializedObject flowSo = new SerializedObject(appFlow);
         flowSo.FindProperty("btnDetail").objectReferenceValue = btnDetail;
@@ -125,10 +138,11 @@ public static class SettingsPanelBuilder
         settingsSo.ApplyModifiedPropertiesWithoutUndo();
         EditorUtility.SetDirty(settingsUi);
 
-        // —— 4) UIManager 回填两个新面板引用 ——
+        // —— 4) UIManager 回填两个新面板引用 + 底栏图标态组件 ——
         SerializedObject uiSo = new SerializedObject(uiManager);
         uiSo.FindProperty("discoverPanel").objectReferenceValue = discoverPanel;
         uiSo.FindProperty("settingsPanel").objectReferenceValue = settingsPanel;
+        uiSo.FindProperty("bottomNav").objectReferenceValue = bottomNav;
         uiSo.ApplyModifiedPropertiesWithoutUndo();
         EditorUtility.SetDirty(uiManager);
 
@@ -156,6 +170,9 @@ public static class SettingsPanelBuilder
         SetActiveIfExists(canvasTf, "ExportPanel", false);
         SetActiveIfExists(canvasTf, "ImportPanel", false);
 
+        // 编辑态底栏同步回明细选中，落盘所见 = 运行初态（UIManager.Awake 兜底同一结果）
+        bottomNav.SetTab(BottomNavUI.NavTab.Detail);
+
         UnityEngine.SceneManagement.Scene scene = canvas.gameObject.scene;
         EditorSceneManager.MarkSceneDirty(scene);
         EditorSceneManager.SaveScene(scene);
@@ -168,7 +185,8 @@ public static class SettingsPanelBuilder
     /// 五栏底栏：明细 | 发现 | 记账(正中) | 图表 | 设置（结构同 01 号 MainSceneBuilder，槽位改五等分）
     /// </summary>
     private static void BuildBottomNav(Transform canvasTf, TMP_FontAsset font, Sprite circleSprite,
-        out Button btnDetail, out Button btnRecord, out Button btnChart, out Button btnDiscover, out Button btnSettings)
+        out Button btnDetail, out Button btnRecord, out Button btnChart, out Button btnDiscover, out Button btnSettings,
+        out BottomNavUI bottomNav)
     {
         GameObject nav = CreateRect(canvasTf, "BottomNav",
             new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0.5f, 0f)).gameObject;
@@ -194,8 +212,17 @@ public static class SettingsPanelBuilder
         SafeAreaFitter fitter = navContent.gameObject.AddComponent<SafeAreaFitter>();
         SetFitterMode(fitter, SafeAreaFitter.Mode.Bottom);
 
-        btnDetail = CreateNavButton(navContent, "btnDetail", new Vector2(0f, 0f), new Vector2(0.2f, 1f), "明细", font);
-        btnDiscover = CreateNavButton(navContent, "btnDiscover", new Vector2(0.2f, 0f), new Vector2(0.4f, 1f), "发现", font);
+        Sprite detailNormal = LoadNavSprite("nav_detail_normal");
+        Sprite detailSelected = LoadNavSprite("nav_detail_selected");
+        Sprite discoverNormal = LoadNavSprite("nav_discover_normal");
+        Sprite discoverSelected = LoadNavSprite("nav_discover_selected");
+        Sprite chartNormal = LoadNavSprite("nav_chart_normal");
+        Sprite chartSelected = LoadNavSprite("nav_chart_selected");
+        Sprite settingsNormal = LoadNavSprite("nav_settings_normal");
+        Sprite settingsSelected = LoadNavSprite("nav_settings_selected");
+
+        btnDetail = CreateNavButton(navContent, "btnDetail", new Vector2(0f, 0f), new Vector2(0.2f, 1f), "明细", font, detailNormal);
+        btnDiscover = CreateNavButton(navContent, "btnDiscover", new Vector2(0.2f, 0f), new Vector2(0.4f, 1f), "发现", font, discoverNormal);
 
         // 正中：大 + 记账（必须居中，五栏正中即 Canvas 中线）
         GameObject recordGo = CreateRect(navContent.transform, "btnRecord",
@@ -212,8 +239,81 @@ public static class SettingsPanelBuilder
         CreateLabel(recordGo.transform, "Plus", "+", font, 72, ColBlack, TextAlignmentOptions.Center, new Vector2(0f, 14f));
         CreateLabel(recordGo.transform, "Label", "记账", font, 26, ColGray, TextAlignmentOptions.Center, new Vector2(0f, -38f));
 
-        btnChart = CreateNavButton(navContent, "btnChart", new Vector2(0.6f, 0f), new Vector2(0.8f, 1f), "图表", font);
-        btnSettings = CreateNavButton(navContent, "btnSettings", new Vector2(0.8f, 0f), new Vector2(1f, 1f), "设置", font);
+        btnChart = CreateNavButton(navContent, "btnChart", new Vector2(0.6f, 0f), new Vector2(0.8f, 1f), "图表", font, chartNormal);
+        btnSettings = CreateNavButton(navContent, "btnSettings", new Vector2(0.8f, 0f), new Vector2(1f, 1f), "设置", font, settingsNormal);
+
+        // —— 底栏图标态组件接线（4×icon/label 指向按钮子节点，normal/selected 指向资产） ——
+        bottomNav = nav.AddComponent<BottomNavUI>();
+        SerializedObject navSo = new SerializedObject(bottomNav);
+        WireNavItem(navSo, "detail", btnDetail.transform, detailNormal, detailSelected);
+        WireNavItem(navSo, "discover", btnDiscover.transform, discoverNormal, discoverSelected);
+        WireNavItem(navSo, "chart", btnChart.transform, chartNormal, chartSelected);
+        WireNavItem(navSo, "settings", btnSettings.transform, settingsNormal, settingsSelected);
+        navSo.ApplyModifiedPropertiesWithoutUndo();
+        EditorUtility.SetDirty(bottomNav);
+    }
+
+    /// <summary>
+    /// BottomNavUI 单页签四字段接线：{prefix}Icon/{prefix}Label 取按钮子节点，{prefix}Normal/Selected 填资产
+    /// </summary>
+    private static void WireNavItem(SerializedObject navSo, string prefix, Transform buttonTf, Sprite normal, Sprite selected)
+    {
+        navSo.FindProperty(prefix + "Icon").objectReferenceValue = buttonTf.Find("Icon")?.GetComponent<Image>();
+        navSo.FindProperty(prefix + "Label").objectReferenceValue = buttonTf.Find("Label")?.GetComponent<TextMeshProUGUI>();
+        navSo.FindProperty(prefix + "Normal").objectReferenceValue = normal;
+        navSo.FindProperty(prefix + "Selected").objectReferenceValue = selected;
+    }
+
+    /// <summary>
+    /// 底栏图标资产加载（EnsureNavIconImport 已保证 Sprite/Single 导入设置）
+    /// </summary>
+    private static Sprite LoadNavSprite(string name)
+    {
+        return AssetDatabase.LoadAssetAtPath<Sprite>($"{NavIconDir}/{name}.png");
+    }
+
+    /// <summary>
+    /// 底栏图标导入设置兜底：Sprite 类型 + Single 模式（Unity6 新导入默认会落 Multiple）+ 上限 256
+    /// </summary>
+    private static void EnsureNavIconImport()
+    {
+        foreach (string name in NavIconNames)
+        {
+            string path = $"{NavIconDir}/{name}.png";
+            TextureImporter importer = AssetImporter.GetAtPath(path) as TextureImporter;
+
+            if (importer == null)
+            {
+                Debug.LogError($"[SettingsBuild] FAIL - 缺少底栏图标 {path}，请从完成版目录补齐 8 张。");
+                continue;
+            }
+
+            bool dirty = false;
+
+            if (importer.textureType != TextureImporterType.Sprite)
+            {
+                importer.textureType = TextureImporterType.Sprite;
+                dirty = true;
+            }
+
+            if (importer.spriteImportMode != SpriteImportMode.Single)
+            {
+                importer.spriteImportMode = SpriteImportMode.Single;
+                dirty = true;
+            }
+
+            if (importer.maxTextureSize > 256)
+            {
+                importer.maxTextureSize = 256;
+                dirty = true;
+            }
+
+            if (dirty)
+            {
+                importer.SaveAndReimport();
+                Debug.Log($"[SettingsBuild] 已修正图标导入设置：{name}（Sprite/Single/256）");
+            }
+        }
     }
 
     /// <summary>
@@ -326,9 +426,9 @@ public static class SettingsPanelBuilder
     }
 
     /// <summary>
-    /// 底栏两侧平铺按钮（透明可点区 + 文字），同 01 号构建器
+    /// 底栏两侧平铺按钮（透明可点区 + 图标 + 底部文字），图标初值 Normal，运行时由 BottomNavUI 切换
     /// </summary>
-    private static Button CreateNavButton(Transform parent, string name, Vector2 anchorMin, Vector2 anchorMax, string label, TMP_FontAsset font)
+    private static Button CreateNavButton(Transform parent, string name, Vector2 anchorMin, Vector2 anchorMax, string label, TMP_FontAsset font, Sprite iconSprite)
     {
         RectTransform rect = CreateRect(parent, name, anchorMin, anchorMax, new Vector2(0.5f, 0.5f));
         rect.offsetMin = Vector2.zero;
@@ -340,7 +440,15 @@ public static class SettingsPanelBuilder
         Button button = rect.gameObject.AddComponent<Button>();
         button.targetGraphic = image;
 
-        CreateLabel(rect, "Label", label, font, 36, ColBlack, TextAlignmentOptions.Center, new Vector2(0f, -18f));
+        RectTransform iconRect = CreateRect(rect, "Icon",
+            new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0.5f, 1f));
+        iconRect.sizeDelta = new Vector2(NavIconSize, NavIconSize);
+        iconRect.anchoredPosition = new Vector2(0f, -12f);
+        Image iconImage = iconRect.gameObject.AddComponent<Image>();
+        iconImage.sprite = iconSprite;
+        iconImage.raycastTarget = false;
+
+        CreateLabel(rect, "Label", label, font, 34, ColGray, TextAlignmentOptions.Center, new Vector2(0f, -52f));
 
         return button;
     }
@@ -378,6 +486,46 @@ public static class SettingsPanelBuilder
             && recordRect.anchorMin == new Vector2(0.5f, 0.5f) && recordRect.anchorMax == new Vector2(0.5f, 0.5f));
         Image recordImage = recordRect != null ? recordRect.GetComponent<Image>() : null;
         allPass &= Check("记账按钮黄圆素材", recordImage != null && recordImage.sprite == circleSprite);
+
+        // —— 底栏图标（步骤10） ——
+        allPass &= Check("八张底栏图标资产已导入且为 Single Sprite",
+            LoadNavSprite("nav_detail_normal") != null && LoadNavSprite("nav_detail_selected") != null
+            && LoadNavSprite("nav_discover_normal") != null && LoadNavSprite("nav_discover_selected") != null
+            && LoadNavSprite("nav_chart_normal") != null && LoadNavSprite("nav_chart_selected") != null
+            && LoadNavSprite("nav_settings_normal") != null && LoadNavSprite("nav_settings_selected") != null);
+
+        Image detailIcon = nav != null ? nav.Find("btnDetail/Icon")?.GetComponent<Image>() : null;
+        Image discoverIcon = nav != null ? nav.Find("btnDiscover/Icon")?.GetComponent<Image>() : null;
+        Image chartIcon = nav != null ? nav.Find("btnChart/Icon")?.GetComponent<Image>() : null;
+        Image settingsIcon = nav != null ? nav.Find("btnSettings/Icon")?.GetComponent<Image>() : null;
+        allPass &= Check("四页签图标子节点存在，落盘态明细=Selected 其余=Normal（所见=运行初态）",
+            detailIcon != null && detailIcon.sprite == LoadNavSprite("nav_detail_selected")
+            && discoverIcon != null && discoverIcon.sprite == LoadNavSprite("nav_discover_normal")
+            && chartIcon != null && chartIcon.sprite == LoadNavSprite("nav_chart_normal")
+            && settingsIcon != null && settingsIcon.sprite == LoadNavSprite("nav_settings_normal"));
+
+        BottomNavUI navUi = canvasTf.Find("BottomNav") != null ? canvasTf.Find("BottomNav").GetComponent<BottomNavUI>() : null;
+        SerializedObject navSoCheck = navUi != null ? new SerializedObject(navUi) : null;
+        allPass &= Check("BottomNavUI 图标态接线（icon/label/normal/selected ×4）", navSoCheck != null
+            && navSoCheck.FindProperty("detailIcon").objectReferenceValue == detailIcon
+            && navSoCheck.FindProperty("detailLabel").objectReferenceValue == (nav?.Find("btnDetail/Label")?.GetComponent<TextMeshProUGUI>())
+            && navSoCheck.FindProperty("detailNormal").objectReferenceValue == LoadNavSprite("nav_detail_normal")
+            && navSoCheck.FindProperty("detailSelected").objectReferenceValue == LoadNavSprite("nav_detail_selected")
+            && navSoCheck.FindProperty("discoverIcon").objectReferenceValue == discoverIcon
+            && navSoCheck.FindProperty("discoverLabel").objectReferenceValue == (nav?.Find("btnDiscover/Label")?.GetComponent<TextMeshProUGUI>())
+            && navSoCheck.FindProperty("discoverNormal").objectReferenceValue == LoadNavSprite("nav_discover_normal")
+            && navSoCheck.FindProperty("discoverSelected").objectReferenceValue == LoadNavSprite("nav_discover_selected")
+            && navSoCheck.FindProperty("chartIcon").objectReferenceValue == chartIcon
+            && navSoCheck.FindProperty("chartLabel").objectReferenceValue == (nav?.Find("btnChart/Label")?.GetComponent<TextMeshProUGUI>())
+            && navSoCheck.FindProperty("chartNormal").objectReferenceValue == LoadNavSprite("nav_chart_normal")
+            && navSoCheck.FindProperty("chartSelected").objectReferenceValue == LoadNavSprite("nav_chart_selected")
+            && navSoCheck.FindProperty("settingsIcon").objectReferenceValue == settingsIcon
+            && navSoCheck.FindProperty("settingsLabel").objectReferenceValue == (nav?.Find("btnSettings/Label")?.GetComponent<TextMeshProUGUI>())
+            && navSoCheck.FindProperty("settingsNormal").objectReferenceValue == LoadNavSprite("nav_settings_normal")
+            && navSoCheck.FindProperty("settingsSelected").objectReferenceValue == LoadNavSprite("nav_settings_selected"));
+
+        allPass &= Check("UIManager.bottomNav 已接线", navUi != null
+            && new SerializedObject(uiManager).FindProperty("bottomNav").objectReferenceValue == navUi);
 
         SerializedObject flowSo = new SerializedObject(appFlow);
         allPass &= Check("AppFlowManager 五个按钮引用已接线",

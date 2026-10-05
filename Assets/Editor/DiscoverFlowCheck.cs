@@ -443,6 +443,39 @@ public static class DiscoverFlowCheck
         allPass &= Check("年档支出 = 独立聚合值", GetTmp(budgetUi, "txtSpent") != null
             && GetTmp(budgetUi, "txtSpent").text == MoneyText.FormatYuan(yearExpense));
 
+        // ============ 四b、返回键遮挡回归（09a：全宽档位标题条曾盖住 BtnBack 的射线） ============
+        // 不走 EventSystem 屏幕射线——Game 视图在后台缩放时画布布局会滞后，坐标映射不可信；
+        // 改为纯层级几何：收集"矩形包含按钮中心点"的活跃可射线 Graphic，按 UI 兄弟序链取最上层。
+        Button budgetBack = GetBtn(budgetUi, "btnBack");
+        Button modeTitle = GetBtn(budgetUi, "btnModeTitle");
+        allPass &= Check("返回键/档位标题键引用就位", budgetBack != null && modeTitle != null);
+
+        if (budgetBack != null && modeTitle != null)
+        {
+            RectTransform canvasRt = (RectTransform)budgetBack.GetComponentInParent<Canvas>(true).transform;
+            GameObject topAtBack = TopmostRaycastableAt(canvasRt, CanvasLocalOf((RectTransform)budgetBack.transform, canvasRt));
+            allPass &= Check("返回键中心最上层射线命中 = BtnBack（不被档位标题条遮挡）",
+                topAtBack == budgetBack.gameObject);
+
+            GameObject topAtTitle = TopmostRaycastableAt(canvasRt, CanvasLocalOf((RectTransform)modeTitle.transform, canvasRt));
+            allPass &= Check("档位标题中心最上层命中 = ModeTitle（重排后标题仍可点）",
+                topAtTitle == modeTitle.gameObject);
+
+            GetBtn(budgetUi, "btnModeTitle").onClick.Invoke();
+            allPass &= Check("点档位标题 → 弹层打开", GetGo(budgetUi, "modePopup") != null
+                && GetGo(budgetUi, "modePopup").activeSelf);
+
+            Button modeBlocker = GetGo(budgetUi, "modeBlocker") != null
+                ? GetGo(budgetUi, "modeBlocker").GetComponent<Button>() : null;
+            modeBlocker.onClick.Invoke();
+            allPass &= Check("点遮罩 → 弹层关闭", GetGo(budgetUi, "modePopup") != null
+                && GetGo(budgetUi, "modePopup").activeSelf == false);
+
+            budgetBack.onClick.Invoke();
+            allPass &= Check("点返回 → 回发现页", discoverUi.gameObject.activeSelf
+                && budgetUi.gameObject.activeSelf == false);
+        }
+
         // ============ 五、预算弹窗关闭路径 ============
         GetBtn(budgetUi, "btnEdit").onClick.Invoke();
         Button maskButton = GetBtn(dialogUi, "maskButton");
@@ -579,6 +612,84 @@ public static class DiscoverFlowCheck
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// UI 元素中心的屏幕坐标（Overlay 画布；用 rect.center 变换，避免 pivot 不在中心时取到角点）
+    /// </summary>
+    /// <summary>
+    /// 元素中心点换算到画布局部坐标（纯 Transform 运算，不依赖 Game 视图当前尺寸/布局时效）
+    /// </summary>
+    private static Vector2 CanvasLocalOf(RectTransform rect, RectTransform canvasRt)
+    {
+        Vector3 world = rect.TransformPoint(rect.rect.center);
+        return canvasRt.InverseTransformPoint(world);
+    }
+
+    /// <summary>
+    /// 画布局部坐标处的"最上层可射线 Graphic"所属物体：
+    /// 收集所有活跃且 raycastTarget 的 Graphic 中矩形包含该点的，再按 UI 兄弟序链取最上层
+    /// （兄弟链 = 从画布到节点的 GetSiblingIndex 序列，字典序大者后建在上层，同 GraphicRaycaster 排序规则）
+    /// </summary>
+    private static GameObject TopmostRaycastableAt(RectTransform canvasRt, Vector2 canvasLocalPoint)
+    {
+        Vector3 world = canvasRt.TransformPoint(canvasLocalPoint);
+        GameObject top = null;
+        List<int> topChain = null;
+
+        Graphic[] graphics = canvasRt.GetComponentsInChildren<Graphic>(true);
+
+        foreach (Graphic graphic in graphics)
+        {
+            if (graphic.raycastTarget == false || graphic.gameObject.activeInHierarchy == false)
+            {
+                continue;
+            }
+
+            Vector3 local = graphic.rectTransform.InverseTransformPoint(world);
+
+            if (graphic.rectTransform.rect.Contains(local) == false)
+            {
+                continue;
+            }
+
+            List<int> chain = SiblingChain(graphic.transform, canvasRt);
+
+            if (top == null || CompareChain(chain, topChain) > 0)
+            {
+                top = graphic.gameObject;
+                topChain = chain;
+            }
+        }
+
+        return top;
+    }
+
+    private static List<int> SiblingChain(Transform node, Transform canvasTf)
+    {
+        List<int> chain = new List<int>();
+        Transform current = node;
+
+        while (current != null && current != canvasTf)
+        {
+            chain.Insert(0, current.GetSiblingIndex());
+            current = current.parent;
+        }
+
+        return chain;
+    }
+
+    private static int CompareChain(List<int> a, List<int> b)
+    {
+        for (int i = 0; i < a.Count && i < b.Count; i++)
+        {
+            if (a[i] != b[i])
+            {
+                return a[i].CompareTo(b[i]);
+            }
+        }
+
+        return a.Count.CompareTo(b.Count);
     }
 
     private static bool Check(string title, bool condition)

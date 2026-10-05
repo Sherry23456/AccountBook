@@ -647,6 +647,9 @@ public static class DiscoverFeatureBuilder
         modeTitleImage.color = new Color(0f, 0f, 0f, 0f);
         refs.BtnModeTitle = modeTitle.AddComponent<Button>();
         refs.BtnModeTitle.targetGraphic = modeTitleImage;
+        // 全宽标题条必须排在 BtnBack 之前（兄弟序小 = 射线低层），
+        // 否则后建的条会盖住返回键吃掉点击（09a 真机踩坑：点返回弹出档位下拉）
+        modeTitle.transform.SetSiblingIndex(0);
         refs.TxtModeTitle = CreateLabel(modeTitle.transform, "Label", "月预算 ▼", font, 48f, ColBlack,
             TextAlignmentOptions.Center, Vector2.zero, Vector2.one, new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
 
