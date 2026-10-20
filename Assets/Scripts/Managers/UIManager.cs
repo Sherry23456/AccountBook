@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.UI;
 
 public class UIManager : MonoBehaviour
 {
@@ -18,6 +19,8 @@ public class UIManager : MonoBehaviour
 
     [Header("Bottom Nav")]
     [SerializeField] private BottomNavUI bottomNav;     // 步骤10 底栏图标 Normal/Selected 刷新
+
+    private GameObject recordTouchBlocker;              // 记账页防误触透明遮罩（盖住底栏，完成/取消后移除）
 
     private void Awake()
     {
@@ -86,7 +89,64 @@ public class UIManager : MonoBehaviour
             budgetPanel.SetActive(targetPanel == budgetPanel);
         }
 
+        RefreshBlocker(targetPanel == recordPanel);
         RefreshBottomNav(targetPanel);
+    }
+
+    /// <summary>
+    /// 记账页防误触遮罩：记账页打开期间盖住底栏（透明、只拦射线），
+    /// 明细/图表等其余页面或完成/取消回明细后自动关闭（所有开/关路径都经 SetOnlyPanelActive）
+    /// </summary>
+    private void RefreshBlocker(bool recordPageOpen)
+    {
+        EnsureRecordTouchBlocker();
+
+        if (recordTouchBlocker != null)
+        {
+            recordTouchBlocker.SetActive(recordPageOpen);
+        }
+    }
+
+    /// <summary>
+    /// 懒创建遮罩：挂在底栏根节点最后一个子物体（射线优先级压过五个页签），
+    /// 拉伸铺满底栏矩形——底栏自身含手势条适配，记账页内容从底栏顶边（offsetMin.y=170）开始，两者零重叠
+    /// </summary>
+    private void EnsureRecordTouchBlocker()
+    {
+        if (recordTouchBlocker != null)
+        {
+            return;
+        }
+
+        if (bottomNav == null)
+        {
+            bottomNav = FindFirstObjectByType<BottomNavUI>(FindObjectsInactive.Include);
+        }
+
+        RectTransform navRect = bottomNav != null ? bottomNav.transform as RectTransform : null;
+
+        if (navRect == null)
+        {
+            return;
+        }
+
+        recordTouchBlocker = new GameObject("RecordTouchBlocker", typeof(RectTransform), typeof(Image));
+        recordTouchBlocker.transform.SetParent(navRect, false);
+        recordTouchBlocker.transform.SetAsLastSibling();
+        recordTouchBlocker.layer = navRect.gameObject.layer;
+
+        RectTransform blockerRect = (RectTransform)recordTouchBlocker.transform;
+        blockerRect.anchorMin = Vector2.zero;
+        blockerRect.anchorMax = Vector2.one;
+        blockerRect.offsetMin = Vector2.zero;
+        blockerRect.offsetMax = Vector2.zero;
+
+        // 全透明但 raycastTarget=true：视觉无感，仅吞掉底栏区域的点击
+        Image blockerImage = recordTouchBlocker.GetComponent<Image>();
+        blockerImage.color = Color.clear;
+        blockerImage.raycastTarget = true;
+
+        recordTouchBlocker.SetActive(false);
     }
 
     /// <summary>
