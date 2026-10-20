@@ -121,7 +121,7 @@ public static class ChartFlowCheck
         };
 
         ChartResult unit = ChartCalculator.Calculate(unitRecords, "2026-09-21", "2026-09-27",
-            ExportRange.Week, RecordType.Expense);
+            ExportRange.Week, RecordType.Expense, new DateTime(2026, 9, 27));
         allPass &= Check("单元：周 7 点", unit.Points.Count == 7);
         allPass &= Check("单元：收入被过滤 总额=7500分", unit.TotalFen == 7500);
         allPass &= Check("单元：均值=总额/7 整除", unit.AvgFen == 7500 / 7);
@@ -134,13 +134,13 @@ public static class ChartFlowCheck
         allPass &= Check("单元：榜首占比 0.4", Mathf.Abs(unit.Ranks[0].Ratio - 0.4f) < 0.0001f);
 
         ChartResult unitMonth = ChartCalculator.Calculate(new List<AccountRecord>(), "2026-02-01", "2026-02-28",
-            ExportRange.Month, RecordType.Expense);
+            ExportRange.Month, RecordType.Expense, new DateTime(2026, 2, 28));
         allPass &= Check("单元：2 月 28 点、标签抽稀 01/06", unitMonth.Points.Count == 28 &&
             unitMonth.XLabels[0] == "01" && unitMonth.XLabels[1] == "" && unitMonth.XLabels[5] == "06");
         allPass &= Check("单元：空数据均值 0 档位 0", unitMonth.AvgFen == 0 && unitMonth.ScaleMaxFen == 0);
 
         ChartResult unitYear = ChartCalculator.Calculate(new List<AccountRecord>(), "2026-01-01", "2026-12-31",
-            ExportRange.Year, RecordType.Income);
+            ExportRange.Year, RecordType.Income, new DateTime(2026, 12, 31));
         allPass &= Check("单元：年 12 点标签 1月..12月", unitYear.Points.Count == 12 &&
             unitYear.XLabels[0] == "1月" && unitYear.XLabels[11] == "12月");
 

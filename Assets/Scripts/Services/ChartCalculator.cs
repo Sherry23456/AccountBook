@@ -62,7 +62,7 @@ public static class ChartCalculator
     /// 聚合主入口：records 一般已按区间查好，这里再按 Date 复核一次边界（字符串比较即时间序）
     /// </summary>
     public static ChartResult Calculate(List<AccountRecord> records, string startDate, string endDate,
-        ExportRange range, RecordType type)
+        ExportRange range, RecordType type, DateTime today)
     {
         ChartResult result = new ChartResult();
         result.StartDate = startDate ?? string.Empty;
@@ -122,7 +122,7 @@ public static class ChartCalculator
         }
 
         BuildXLabels(result, start, range);
-        BuildStats(result);
+        BuildStats(result, today, start, range);
         BuildRanks(result, categorySum);
         return result;
     }
@@ -196,7 +196,7 @@ public static class ChartCalculator
         }
     }
 
-    private static void BuildStats(ChartResult result)
+    private static void BuildStats(ChartResult result, DateTime today, DateTime start, ExportRange range)
     {
         for (int i = 0; i < result.Points.Count; i++)
         {
@@ -209,10 +209,41 @@ public static class ChartCalculator
 
         if (result.Points.Count > 0)
         {
-            result.AvgFen = result.TotalFen / result.Points.Count;
+            int divisor = GetDivisor(result, today, start, range);
+            result.AvgFen = divisor > 0 ? result.TotalFen / divisor : 0;
         }
 
         result.ScaleMaxFen = NiceCeilFen(result.MaxFen);
+    }
+
+    /// <summary>
+    /// 当期用"已过天数/月数"作除数，往期用完整周期长度，避免未过完的周期被低估均值
+    /// </summary>
+    private static int GetDivisor(ChartResult result, DateTime today, DateTime start, ExportRange range)
+    {
+        DateTime periodEnd;
+
+        if (!TryParseDate(result.EndDate, out periodEnd))
+        {
+            return result.Points.Count;
+        }
+
+        if (today > periodEnd)
+        {
+            return result.Points.Count;
+        }
+
+        if (today < start)
+        {
+            return 0;
+        }
+
+        if (range == ExportRange.Year)
+        {
+            return today.Month;
+        }
+
+        return (today.Date - start.Date).Days + 1;
     }
 
     /// <summary>

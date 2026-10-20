@@ -277,7 +277,7 @@ public class ChartPanelUI : MonoBehaviour
         lastEndDate = end;
         lastRecords = accountManager.GetRecordsInRange(start, end);
 
-        ChartResult result = ChartCalculator.Calculate(lastRecords, start, end, currentRange, currentType);
+        ChartResult result = ChartCalculator.Calculate(lastRecords, start, end, currentRange, currentType, DateTime.Now.Date);
         LastResult = result;
 
         if (txtTotalCaption != null)
